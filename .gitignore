@@ -1,0 +1,28 @@
+# Node
+node_modules/
+dist/
+coverage/
+*.log
+
+# Environment
+.env
+.env.local
+.env.*.local
+.env.test
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Prisma
+prisma/*.db
+prisma/*.db-journal
+
+# Tests
+tests/coverage/
