@@ -134,4 +134,26 @@ export class User {
     }
     this.deletedAt = null;
   }
+
+  static reconstitute(
+    id: string,
+    email: Email,
+    password: Password,
+    name: string,
+    role: Role,
+    createdAt: Date,
+    updatedAt: Date,
+    deletedAt: Date | null
+  ): User {
+    return new User(
+      id,
+      email,
+      password,
+      name,
+      role,
+      createdAt,
+      updatedAt,
+      deletedAt
+    );
+  }
 }
