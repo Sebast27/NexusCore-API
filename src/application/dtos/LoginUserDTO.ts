@@ -16,4 +16,5 @@ export interface LoginUserResponseDTO {
   name: string;
   role: string;
   accessToken: string;
+  refreshToken: string;
 }

@@ -5,11 +5,14 @@ import { Request, Response } from 'express';
 import { ZodError } from 'zod';
 import { LoginUserInput } from '../../../../application/dtos/LoginUserDTO';
 import { LoginUserUseCase } from '../../../../application/use-cases/auth/LoginUserUseCase';
+import { RefreshTokenUseCase } from '../../../../application/use-cases/auth/RefreshTokenUseCase';
 
 export class AuthController {
   constructor(
     private registerUserUseCase: RegisterUserUseCase,
-    private loginUserUseCase: LoginUserUseCase) { }
+    private loginUserUseCase: LoginUserUseCase,
+    private refreshTokenUseCase: RefreshTokenUseCase
+  ) { }
 
   async register(req: Request, res: Response): Promise<Response> {
     try {
@@ -71,6 +74,46 @@ export class AuthController {
       }
 
       console.error('Error en login:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Internal server error'
+      });
+    }
+  }
+
+  async refresh(req: Request, res: Response): Promise<Response> {
+    try {
+      const { refreshToken } = req.body;
+      
+      if (!refreshToken) {
+        return res.status(400).json({
+          success: false,
+          error: 'Refresh token is required'
+        });
+      }
+
+      const result = await this.refreshTokenUseCase.execute({ refreshToken });
+      
+      return res.status(200).json({
+        success: true,
+        data: result
+      });
+    } catch (error) {
+      if (error instanceof Error && error.message === 'Invalid refresh token') {
+        return res.status(401).json({
+          success: false,
+          error: 'Invalid refresh token'
+        });
+      }
+      
+      if (error instanceof Error && error.message === 'Refresh token expired') {
+        return res.status(401).json({
+          success: false,
+          error: 'Refresh token expired'
+        });
+      }
+
+      console.error('Error en refresh:', error);
       return res.status(500).json({
         success: false,
         error: 'Internal server error'
