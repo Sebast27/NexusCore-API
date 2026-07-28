@@ -12,7 +12,7 @@ export class PrismaUserRepository implements IUserRepository {
       data: {
         id: user.getId(),
         email: user.getEmail().getValue(),
-        password: await user.getPassword().hash(),
+        password: user.getPassword().getValue(),
         name: user.getName(),
         role: user.getRole() as PrismaRole,
         createdAt: user.getCreatedAt(),
