@@ -4,6 +4,8 @@ import { RegisterUserUseCase } from '../../../../../src/application/use-cases/au
 import { LoginUserUseCase } from '../../../../../src/application/use-cases/auth/LoginUserUseCase';
 import { UserAlreadyExistsError } from '../../../../../src/application/errors/UserAlreadyExistsError';
 import { RefreshTokenUseCase } from '../../../../../src/application/use-cases/auth/RefreshTokenUseCase';
+import { LogoutUseCase } from '../../../../../src/application/use-cases/auth/LogoutUseCase';
+import { AuthRequest } from '../../../../../src/infrastructure/adapters/http/middlewares/authMiddleware';
 import { Role } from '../../../../../src/domain/enums/Role';
 import { ZodError } from 'zod';
 
@@ -20,9 +22,13 @@ const mockRefreshUseCase = {
   execute: jest.fn()
 } as unknown as jest.Mocked<RefreshTokenUseCase>;
 
+const mockLogoutUseCase = {
+  execute: jest.fn()
+} as unknown as jest.Mocked<LogoutUseCase>;
+
 describe('AuthController', () => {
   let controller: AuthController;
-  let req: Partial<Request>;
+  let req: Partial<AuthRequest>;
   let res: Partial<Response>;
 
   beforeEach(() => {
@@ -30,11 +36,13 @@ describe('AuthController', () => {
     controller = new AuthController(
       mockRegisterUseCase, 
       mockLoginUseCase,
-      mockRefreshUseCase
+      mockRefreshUseCase,
+      mockLogoutUseCase
     );
     
     req = {
-      body: {}
+      body: {},
+      user: undefined
     };
     
     res = {
@@ -225,6 +233,66 @@ describe('AuthController', () => {
       expect(res.json).toHaveBeenCalledWith({
         success: false,
         error: 'Invalid email'
+      });
+    });
+  });
+
+  // Agregar pruebas de logout
+  describe('logout', () => {
+    it('should return 200 when logout is successful', async () => {
+      // Arrange
+      const mockUser = {
+        id: '123',
+        email: 'test@test.com',
+        role: 'USER'
+      };
+      req.user = mockUser;
+      mockLogoutUseCase.execute.mockResolvedValue(undefined);
+
+      // Act
+      await controller.logout(req as AuthRequest, res as Response);
+
+      // Assert
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith({
+        success: true,
+        message: 'Logged out successfully'
+      });
+    });
+
+    it('should return 401 if user not authenticated', async () => {
+      // Arrange
+      req.user = undefined;
+
+      // Act
+      await controller.logout(req as AuthRequest, res as Response);
+
+      // Assert
+      expect(res.status).toHaveBeenCalledWith(401);
+      expect(res.json).toHaveBeenCalledWith({
+        success: false,
+        error: 'Not authenticated'
+      });
+    });
+
+    it('should return 500 on unexpected error', async () => {
+      // Arrange
+      const mockUser = {
+        id: '123',
+        email: 'test@test.com',
+        role: 'USER'
+      };
+      req.user = mockUser;
+      mockLogoutUseCase.execute.mockRejectedValue(new Error('Database error'));
+
+      // Act
+      await controller.logout(req as AuthRequest, res as Response);
+
+      // Assert
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.json).toHaveBeenCalledWith({
+        success: false,
+        error: 'Internal server error'
       });
     });
   });

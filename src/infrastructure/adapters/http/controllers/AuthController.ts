@@ -3,15 +3,18 @@ import { RegisterUserInput } from '../../../../application/dtos/RegisterUserDTO'
 import { RegisterUserUseCase } from '../../../../application/use-cases/auth/RegisterUserUseCase';
 import { Request, Response } from 'express';
 import { ZodError } from 'zod';
+import { AuthRequest } from '../middlewares/authMiddleware';
 import { LoginUserInput } from '../../../../application/dtos/LoginUserDTO';
 import { LoginUserUseCase } from '../../../../application/use-cases/auth/LoginUserUseCase';
 import { RefreshTokenUseCase } from '../../../../application/use-cases/auth/RefreshTokenUseCase';
+import { LogoutUseCase } from '../../../../application/use-cases/auth/LogoutUseCase';
 
 export class AuthController {
   constructor(
     private registerUserUseCase: RegisterUserUseCase,
     private loginUserUseCase: LoginUserUseCase,
-    private refreshTokenUseCase: RefreshTokenUseCase
+    private refreshTokenUseCase: RefreshTokenUseCase,
+    private logoutUseCase: LogoutUseCase
   ) { }
 
   async register(req: Request, res: Response): Promise<Response> {
@@ -114,6 +117,30 @@ export class AuthController {
       }
 
       console.error('Error en refresh:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Internal server error'
+      });
+    }
+  }
+
+  async logout(req: AuthRequest, res: Response): Promise<Response> {
+    try {
+      if (!req.user) {
+        return res.status(401).json({
+          success: false,
+          error: 'Not authenticated'
+        });
+      }
+
+      await this.logoutUseCase.execute({ userId: req.user.id });
+      
+      return res.status(200).json({
+        success: true,
+        message: 'Logged out successfully'
+      });
+    } catch (error) {
+      console.error('Error en logout:', error);
       return res.status(500).json({
         success: false,
         error: 'Internal server error'
