@@ -3,6 +3,7 @@ import { AuthController } from '../../../../../src/infrastructure/adapters/http/
 import { RegisterUserUseCase } from '../../../../../src/application/use-cases/auth/RegisterUserUseCase';
 import { LoginUserUseCase } from '../../../../../src/application/use-cases/auth/LoginUserUseCase';
 import { UserAlreadyExistsError } from '../../../../../src/application/errors/UserAlreadyExistsError';
+import { RefreshTokenUseCase } from '../../../../../src/application/use-cases/auth/RefreshTokenUseCase';
 import { Role } from '../../../../../src/domain/enums/Role';
 import { ZodError } from 'zod';
 
@@ -15,6 +16,10 @@ const mockLoginUseCase = {
   execute: jest.fn()
 } as unknown as jest.Mocked<LoginUserUseCase>;
 
+const mockRefreshUseCase = {
+  execute: jest.fn()
+} as unknown as jest.Mocked<RefreshTokenUseCase>;
+
 describe('AuthController', () => {
   let controller: AuthController;
   let req: Partial<Request>;
@@ -22,7 +27,11 @@ describe('AuthController', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    controller = new AuthController(mockRegisterUseCase, mockLoginUseCase);
+    controller = new AuthController(
+      mockRegisterUseCase, 
+      mockLoginUseCase,
+      mockRefreshUseCase
+    );
     
     req = {
       body: {}
@@ -151,7 +160,8 @@ describe('AuthController', () => {
         email: 'test@test.com',
         name: 'Test User',
         role: Role.USER,
-        accessToken: 'mock-token'
+        accessToken: 'mock-token',
+        refreshToken: '7d'
       };
       
       req.body = mockInput;

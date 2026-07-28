@@ -163,5 +163,68 @@ describe('LoginUserUseCase', () => {
       expect(mockUserRepository.findByEmail).not.toHaveBeenCalled();
       expect(jwt.sign).not.toHaveBeenCalled();
     });
+
+    it('should return refresh token on login', async () => {
+      // Arrange
+      const mockUser = User.create(
+        Email.create(validInput.email),
+        await Password.create(validInput.password),
+        'Test User',
+        Role.USER
+      );
+      
+      mockUserRepository.findByEmail.mockResolvedValue(mockUser);
+      (jwt.sign as jest.Mock).mockReturnValue('mock-jwt-token');
+
+      // Act
+      const result = await useCase.execute(validInput);
+
+      // Assert
+      expect(result).toHaveProperty('refreshToken');
+      expect(result.refreshToken).toBeDefined();
+      expect(typeof result.refreshToken).toBe('string');
+    });
+
+    it('should return refresh token on login', async () => {
+      // Arrange
+      const mockUser = User.create(
+        Email.create(validInput.email),
+        await Password.create(validInput.password),
+        'Test User',
+        Role.USER
+      );
+      
+      mockUserRepository.findByEmail.mockResolvedValue(mockUser);
+      (jwt.sign as jest.Mock).mockReturnValue('mock-jwt-token');
+
+      // Act
+      const result = await useCase.execute(validInput);
+
+      // Assert
+      expect(result).toHaveProperty('refreshToken');
+      expect(result.refreshToken).toBeDefined();
+      expect(typeof result.refreshToken).toBe('string');
+    });
+
+    it('should return refresh token on login', async () => {
+      // Arrange
+      const mockUser = User.create(
+        Email.create(validInput.email),
+        await Password.create(validInput.password),
+        'Test User',
+        Role.USER
+      );
+      
+      mockUserRepository.findByEmail.mockResolvedValue(mockUser);
+      (jwt.sign as jest.Mock).mockReturnValue('mock-jwt-token');
+
+      // Act
+      const result = await useCase.execute(validInput);
+
+      // Assert
+      expect(result).toHaveProperty('refreshToken');
+      expect(result.refreshToken).toBeDefined();
+      expect(typeof result.refreshToken).toBe('string');
+    });
   });
 });

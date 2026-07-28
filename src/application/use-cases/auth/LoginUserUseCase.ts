@@ -54,7 +54,8 @@ export class LoginUserUseCase {
         email: user.getEmail().getValue(),
         name: user.getName(),
         role: user.getRole(),
-        accessToken: token
+        accessToken: token,
+        refreshToken: this.generateRefreshToken(user)
       };
     } catch (error) {
       if (error instanceof ZodError) {
@@ -80,5 +81,19 @@ export class LoginUserUseCase {
       secret,
       { expiresIn: expiresIn } as jwt.SignOptions
     );
+  }
+
+  private generateRefreshToken(user: User): string {
+    const payload = {
+      id: user.getId(),
+      email: user.getEmail().getValue(),
+      role: user.getRole(),
+      type: 'refresh' as const
+    };
+
+    const secret = process.env.JWT_SECRET || 'default-secret-key';
+    const expiresIn = process.env.JWT_REFRESH_EXPIRATION || '7d';
+
+    return jwt.sign(payload, secret, { expiresIn } as jwt.SignOptions);
   }
 }
