@@ -57,4 +57,8 @@ export class Password {
   getValue(): string {
     return this.value;
   }
+
+  static createFromHash(hash: string): Password {
+    return new Password(hash);
+  }
 }
