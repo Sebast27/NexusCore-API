@@ -1,7 +1,7 @@
-import 'dotenv/config'; 
+import 'dotenv/config';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient, Role } from '@prisma/client';
-import bcrypt from 'bcrypt';
+import { Password } from '../src/domain/value-objects/Password';
 
 const databaseUrl = process.env.DATABASE_URL!;
 
@@ -19,8 +19,9 @@ async function main() {
   console.log('🌱 Iniciando seed...');
   console.log('📡 Conectando a:', databaseUrl);
 
-  // Crear usuario admin por defecto
-  const adminPassword = await bcrypt.hash('Admin123!', 10);
+  // Crear usuario admin por defecto usando Password VO
+  const passwordObj = Password.create('Admin123!');
+  const adminPassword = await passwordObj.hash();
 
   const admin = await prisma.user.upsert({
     where: { email: 'admin@nexuscore.com' },
@@ -40,7 +41,8 @@ async function main() {
   console.log('✅ Usuario admin creado:', admin.email);
 
   // Crear usuario editor
-  const editorPassword = await bcrypt.hash('Editor123!', 10);
+  const editorPasswordObj = Password.create('Editor123!');
+  const editorPassword = await editorPasswordObj.hash();
 
   const editor = await prisma.user.upsert({
     where: { email: 'editor@nexuscore.com' },
@@ -60,7 +62,8 @@ async function main() {
   console.log('✅ Usuario editor creado:', editor.email);
 
   // Crear usuario viewer
-  const viewerPassword = await bcrypt.hash('Viewer123!', 10);
+  const viewerPasswordObj = Password.create('Viewer123!');
+  const viewerPassword = await viewerPasswordObj.hash();
 
   const viewer = await prisma.user.upsert({
     where: { email: 'viewer@nexuscore.com' },
