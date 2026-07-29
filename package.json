@@ -17,7 +17,13 @@
     "prisma:seed": "prisma db seed",
     "prisma:studio": "prisma studio",
     "lint": "eslint . --ext .ts",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "docker:build": "docker-compose -f docker-compose.prod.yml build",
+    "docker:up": "docker-compose -f docker-compose.prod.yml up -d",
+    "docker:down": "docker-compose -f docker-compose.prod.yml down",
+    "docker:logs": "docker-compose -f docker-compose.prod.yml logs -f",
+    "docker:restart": "docker-compose -f docker-compose.prod.yml restart",
+    "docker:clean": "docker-compose -f docker-compose.prod.yml down -v --rmi all"
   },
   "keywords": [
     "api",
