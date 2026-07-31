@@ -3,6 +3,7 @@ import { UserResponseDTO, UserResponseMapper } from '../../dtos/UserResponseDTO'
 import { IUserRepository } from '../../../domain/interfaces/IUserRepository';
 import { Email } from '../../../domain/value-objects/Email';
 import { Password } from '../../../domain/value-objects/Password';
+import { Name } from '../../../domain/value-objects/Name';
 import { User } from '../../../domain/entities/User';
 import { UserAlreadyExistsError } from '../../errors/UserAlreadyExistsError';
 import { ZodError } from 'zod';
@@ -36,11 +37,13 @@ export class RegisterUserUseCase {
         throw new UserAlreadyExistsError(validatedInput.email);
       }
 
+      const name = Name.create(validatedInput.name);
+
       // 4. Crear entidad User
       const user = User.create(
         email,
         password,
-        validatedInput.name,
+        name,
         Role.USER
       );
 

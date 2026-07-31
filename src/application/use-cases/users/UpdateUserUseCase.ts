@@ -1,8 +1,9 @@
+import { Name } from '../../../domain/value-objects/Name';
 import { IUserRepository } from '../../../domain/interfaces/IUserRepository';
 import { UserResponseDTO, UserResponseMapper } from '../../dtos/UserResponseDTO';
 
 export interface UpdateUserInput {
-  name?: string;
+  name?: Name;
   role?: string;
 }
 
