@@ -44,18 +44,20 @@ export class LoginUserUseCase {
         throw new Error('Invalid credentials');
       }
 
-      // 5. Generar JWT
-      const token = this.generateToken(user);
-      console.error('✅ Token generado');
+      // Generar tokens
+      const accessToken = this.generateAccessToken(user);
+      const refreshToken = this.generateRefreshToken(user);
+      console.error('🔑 Access Token:', accessToken);
+      console.error('🔑 Refresh Token:', refreshToken);
 
       // 6. Retornar respuesta
       return {
-        id: user.getId(),
+        id: user.getId().getValue(),
         email: user.getEmail().getValue(),
-        name: user.getName(),
+        name: user.getName().getValue(),
         role: user.getRole(),
-        accessToken: token,
-        refreshToken: this.generateRefreshToken(user)
+        accessToken,
+        refreshToken
       };
     } catch (error) {
       if (error instanceof ZodError) {
@@ -66,7 +68,7 @@ export class LoginUserUseCase {
     }
   }
 
-  private generateToken(user: User): string {
+  private generateAccessToken(user: User): string {
     const payload = {
       id: user.getId(),
       email: user.getEmail().getValue(),

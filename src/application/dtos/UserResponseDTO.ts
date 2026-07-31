@@ -13,9 +13,9 @@ export interface UserResponseDTO {
 export class UserResponseMapper {
   static toDTO(user: User): UserResponseDTO {
     return {
-      id: user.getId(),
+      id: user.getId().getValue(),
       email: user.getEmail().getValue(),
-      name: user.getName(),
+      name: user.getName().getValue(),
       role: user.getRole(),
       createdAt: user.getCreatedAt(),
       updatedAt: user.getUpdatedAt()

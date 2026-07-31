@@ -2,6 +2,7 @@ import { PrismaClient, Role as PrismaRole } from '@prisma/client';
 import { User } from '../../../domain/entities/User';
 import { Email } from '../../../domain/value-objects/Email';
 import { Password } from '../../../domain/value-objects/Password';
+import { Name } from '../../../domain/value-objects/Name';
 import { IUserRepository } from '../../../domain/interfaces/IUserRepository';
 
 export class PrismaUserRepository implements IUserRepository {
@@ -10,10 +11,10 @@ export class PrismaUserRepository implements IUserRepository {
   async save(user: User): Promise<void> {
     await this.prisma.user.create({
       data: {
-        id: user.getId(),
+        id: user.getId().getValue(),
         email: user.getEmail().getValue(),
         password: user.getPassword().getValue(),
-        name: user.getName(),
+        name: user.getName().getValue(),
         role: user.getRole() as PrismaRole,
         createdAt: user.getCreatedAt(),
         updatedAt: user.getUpdatedAt(),
@@ -52,11 +53,11 @@ export class PrismaUserRepository implements IUserRepository {
 
   async update(user: User): Promise<void> {
     await this.prisma.user.update({
-      where: { id: user.getId() },
+      where: { id: user.getId().getValue() },
       data: {
         email: user.getEmail().getValue(),
         password: await user.getPassword().hash(),
-        name: user.getName(),
+        name: user.getName().getValue(),
         role: user.getRole() as PrismaRole,
         updatedAt: user.getUpdatedAt(),
         deletedAt: user.getDeletedAt(),
@@ -73,12 +74,13 @@ export class PrismaUserRepository implements IUserRepository {
   private toDomain(prismaUser: any): User {
     const email = Email.create(prismaUser.email);
     const password = Password.createFromHash(prismaUser.password);
+    const name = Name.create(prismaUser.name);
 
     return User.reconstitute(
       prismaUser.id,
       email,
       password,
-      prismaUser.name,
+      name,
       prismaUser.role,
       prismaUser.createdAt,
       prismaUser.updatedAt,
