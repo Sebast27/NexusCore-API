@@ -4,6 +4,7 @@ import { IUserRepository } from '../../../../src/domain/interfaces/IUserReposito
 import { User } from '../../../../src/domain/entities/User';
 import { Email } from '../../../../src/domain/value-objects/Email';
 import { Password } from '../../../../src/domain/value-objects/Password';
+import { Name } from '../../../../src/domain/value-objects/Name';
 import { Role } from '../../../../src/domain/enums/Role';
 import { UserAlreadyExistsError } from '../../../../src/application/errors/UserAlreadyExistsError';
 
@@ -42,7 +43,7 @@ describe('RegisterUserUseCase', () => {
 
     // Assert
     expect(result).toMatchObject({
-        email: expect.any(Email),
+        email: validInput.email,
         name: validInput.name,
         role: Role.USER
     });
@@ -95,7 +96,7 @@ describe('RegisterUserUseCase', () => {
       const existingUser = User.create(
         Email.create(validInput.email),
         await Password.create(validInput.password),
-        'Existing User',
+        Name.create('Existing User'),
         Role.USER
       );
       mockUserRepository.findByEmail.mockResolvedValue(existingUser);

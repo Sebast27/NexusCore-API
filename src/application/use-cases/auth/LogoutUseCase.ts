@@ -1,4 +1,5 @@
 import { IUserRepository } from '../../../domain/interfaces/IUserRepository';
+import { UserId } from '../../../domain/value-objects/UserId';
 
 export interface LogoutInput {
   userId: string;
@@ -10,7 +11,8 @@ export class LogoutUseCase {
   async execute(input: LogoutInput): Promise<void> {
     // Por ahora, solo verificamos que el usuario existe
     // En una implementación real, agregarías un blacklist de tokens
-    const user = await this.userRepository.findById(input.userId);
+    const id = UserId.fromString(input.userId);
+    const user = await this.userRepository.findById(id);
     if (!user) {
       throw new Error('User not found');
     }

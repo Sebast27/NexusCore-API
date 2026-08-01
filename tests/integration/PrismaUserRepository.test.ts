@@ -4,6 +4,7 @@ import { PrismaUserRepository } from '../../src/infrastructure/adapters/database
 import { User } from '../../src/domain/entities/User';
 import { Email } from '../../src/domain/value-objects/Email';
 import { Password } from '../../src/domain/value-objects/Password';
+import { Name } from '../../src/domain/value-objects/Name'
 
 describe('PrismaUserRepository Integration Tests', () => {
   // Crear el adapter con la URL de la base de datos
@@ -29,7 +30,7 @@ describe('PrismaUserRepository Integration Tests', () => {
       const user = User.create(
         Email.create('test@example.com'),
         Password.create('SecurePass123!'),
-        'Test User',
+        Name.create('Test User'),
         'USER'
       );
 
@@ -55,7 +56,7 @@ describe('PrismaUserRepository Integration Tests', () => {
       const user = User.create(
         Email.create('find@example.com'),
         Password.create('SecurePass123!'),
-        'Find User',
+        Name.create('Find User'),
         'USER'
       );
       await repository.save(user);
@@ -66,7 +67,7 @@ describe('PrismaUserRepository Integration Tests', () => {
       // Assert
       expect(foundUser).toBeDefined();
       expect(foundUser?.getEmail().getValue()).toBe('find@example.com');
-      expect(foundUser?.getName()).toBe('Find User');
+      expect(foundUser?.getName().getValue()).toBe('Find User');
     });
 
     it('should return null when user not found', async () => {
@@ -84,7 +85,7 @@ describe('PrismaUserRepository Integration Tests', () => {
       const user = User.create(
         Email.create('id@example.com'),
         Password.create('SecurePass123!'),
-        'ID User',
+        Name.create('Id User'),
         'USER'
       );
       await repository.save(user);
@@ -94,8 +95,8 @@ describe('PrismaUserRepository Integration Tests', () => {
 
       // Assert
       expect(foundUser).toBeDefined();
-      expect(foundUser?.getId()).toBe(user.getId());
-      expect(foundUser?.getName()).toBe('ID User');
+      expect(foundUser?.getId().getValue()).toBe(user.getId().getValue());
+      expect(foundUser?.getName().getValue()).toBe('Id User');
     });
   });
 
@@ -105,13 +106,13 @@ describe('PrismaUserRepository Integration Tests', () => {
       const user1 = User.create(
         Email.create('all1@example.com'),
         Password.create('SecurePass123!'),
-        'User 1',
+        Name.create('User One'),
         'USER'
       );
       const user2 = User.create(
         Email.create('all2@example.com'),
         Password.create('SecurePass123!'),
-        'User 2',
+        Name.create('User Two'),
         'USER'
       );
       await repository.save(user1);
@@ -122,8 +123,8 @@ describe('PrismaUserRepository Integration Tests', () => {
 
       // Assert
       expect(users).toHaveLength(2);
-      expect(users[0].getName()).toBe('User 1');
-      expect(users[1].getName()).toBe('User 2');
+      expect(users[0].getName().getValue()).toBe('User One');
+      expect(users[1].getName().getValue()).toBe('User Two');
     });
 
     it('should return empty array when no users', async () => {
@@ -141,13 +142,14 @@ describe('PrismaUserRepository Integration Tests', () => {
       const user = User.create(
         Email.create('update@example.com'),
         Password.create('SecurePass123!'),
-        'Old Name',
+        Name.create('Old Name'),
         'USER'
       );
       await repository.save(user);
 
       // Modificar el usuario
-      user.updateName('New Name');
+      const newName = Name.create('New Name');
+      user.updateName(newName);
       user.updateRole('EDITOR');
 
       // Act
@@ -169,7 +171,7 @@ describe('PrismaUserRepository Integration Tests', () => {
       const user = User.create(
         Email.create('delete@example.com'),
         Password.create('SecurePass123!'),
-        'Delete User',
+        Name.create('Delete User'),
         'USER'
       );
       await repository.save(user);

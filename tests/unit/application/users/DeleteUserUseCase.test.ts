@@ -3,6 +3,7 @@ import { IUserRepository } from '../../../../src/domain/interfaces/IUserReposito
 import { User } from '../../../../src/domain/entities/User';
 import { Email } from '../../../../src/domain/value-objects/Email';
 import { Password } from '../../../../src/domain/value-objects/Password';
+import { Name } from '../../../../src/domain/value-objects/Name';
 import { Role } from '../../../../src/domain/enums/Role';
 
 const mockUserRepository: jest.Mocked<IUserRepository> = {
@@ -17,6 +18,8 @@ const mockUserRepository: jest.Mocked<IUserRepository> = {
 describe('DeleteUserUseCase', () => {
   let useCase: DeleteUserUseCase;
   let mockUser: User;
+  const deletedBy = 'admin@example.com';
+  const reason = 'User deleted by administrator';
 
   beforeEach(async () => {
     jest.clearAllMocks();
@@ -25,7 +28,7 @@ describe('DeleteUserUseCase', () => {
     mockUser = User.create(
       Email.create('test@test.com'),
       await Password.create('Test123!@#'),
-      'Test User',
+      Name.create('Test User'),
       Role.USER
     );
   });
@@ -36,8 +39,12 @@ describe('DeleteUserUseCase', () => {
       mockUserRepository.findById.mockResolvedValue(mockUser);
       mockUserRepository.update.mockResolvedValue();
 
-      // Act
-      await useCase.execute(mockUser.getId());
+      // ✅ CORREGIDO: pasar deletedBy y reason
+      await useCase.execute(
+        mockUser.getId().getValue(), // ← Convertir UserId a string
+        deletedBy,
+        reason
+      );
 
       // Assert
       expect(mockUserRepository.findById).toHaveBeenCalledWith(mockUser.getId());
@@ -51,8 +58,8 @@ describe('DeleteUserUseCase', () => {
       // Arrange
       mockUserRepository.findById.mockResolvedValue(null);
 
-      // Act & Assert
-      await expect(useCase.execute('non-existent-id'))
+      const nonExistentId = '123e4567-e89b-42d3-a456-426614174000';
+      await expect(useCase.execute(nonExistentId, deletedBy, reason))
         .rejects
         .toThrow('User not found');
       expect(mockUserRepository.update).not.toHaveBeenCalled();
@@ -60,11 +67,16 @@ describe('DeleteUserUseCase', () => {
 
     it('should throw error if user is already deleted', async () => {
       // Arrange
-      mockUser.softDelete();
+      // ✅ CORREGIDO: softDelete requiere deletedBy y reason
+      mockUser.softDelete(deletedBy, 'User was already deleted');
       mockUserRepository.findById.mockResolvedValue(mockUser);
 
-      // Act & Assert
-      await expect(useCase.execute(mockUser.getId()))
+      // ✅ CORREGIDO: pasar los 3 argumentos
+      await expect(useCase.execute(
+        mockUser.getId().getValue(),
+        deletedBy,
+        reason
+      ))
         .rejects
         .toThrow('User is already deleted');
       expect(mockUserRepository.update).not.toHaveBeenCalled();

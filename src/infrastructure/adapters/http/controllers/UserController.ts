@@ -104,7 +104,11 @@ export class UserController {
     try {
       const { id } = req.params;
       const userId = Array.isArray(id) ? id[0] : id;
-      await this.deleteUserUseCase.execute(userId);
+      await this.deleteUserUseCase.execute(
+        userId,
+        req.user?.email || 'system',
+        'User deleted by administrator'
+      );
       
       return res.status(200).json({
         success: true,

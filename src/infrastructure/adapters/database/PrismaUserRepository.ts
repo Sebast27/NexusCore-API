@@ -1,5 +1,6 @@
 import { PrismaClient, Role as PrismaRole } from '@prisma/client';
 import { User } from '../../../domain/entities/User';
+import { UserId } from '../../../domain/value-objects/UserId'
 import { Email } from '../../../domain/value-objects/Email';
 import { Password } from '../../../domain/value-objects/Password';
 import { Name } from '../../../domain/value-objects/Name';
@@ -33,9 +34,9 @@ export class PrismaUserRepository implements IUserRepository {
     return this.toDomain(user);
   }
 
-  async findById(id: string): Promise<User | null> {
+  async findById(id: UserId): Promise<User | null> {
     const user = await this.prisma.user.findUnique({
-      where: { id },
+      where: { id: id.getValue() },
     });
 
     if (!user) return null;
@@ -65,19 +66,20 @@ export class PrismaUserRepository implements IUserRepository {
     });
   }
 
-  async delete(id: string): Promise<void> {
+  async delete(id: UserId): Promise<void> {
     await this.prisma.user.delete({
-      where: { id },
+      where: { id: id.getValue() },
     });
   }
 
   private toDomain(prismaUser: any): User {
+    const id = UserId.fromString(prismaUser.id);
     const email = Email.create(prismaUser.email);
     const password = Password.createFromHash(prismaUser.password);
     const name = Name.create(prismaUser.name);
 
     return User.reconstitute(
-      prismaUser.id,
+      id,
       email,
       password,
       name,

@@ -70,7 +70,7 @@ export class LoginUserUseCase {
 
   private generateAccessToken(user: User): string {
     const payload = {
-      id: user.getId(),
+      id: user.getId().getValue(),
       email: user.getEmail().getValue(),
       role: user.getRole()
     };
@@ -87,7 +87,7 @@ export class LoginUserUseCase {
 
   private generateRefreshToken(user: User): string {
     const payload = {
-      id: user.getId(),
+      id: user.getId().getValue(),
       email: user.getEmail().getValue(),
       role: user.getRole(),
       type: 'refresh' as const

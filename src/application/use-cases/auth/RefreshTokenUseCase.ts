@@ -1,5 +1,6 @@
 import { IUserRepository } from '../../../domain/interfaces/IUserRepository';
 import { User } from '../../../domain/entities/User';
+import { UserId } from '../../../domain/value-objects/UserId';
 import jwt from 'jsonwebtoken';
 
 export interface RefreshTokenInput {
@@ -27,7 +28,8 @@ export class RefreshTokenUseCase {
         throw new Error('Invalid token type');
       }
 
-      const user = await this.userRepository.findById(decoded.id);
+      const id = UserId.fromString(decoded.id);
+      const user = await this.userRepository.findById(id);
       if (!user) {
         throw new Error('User not found');
       }
