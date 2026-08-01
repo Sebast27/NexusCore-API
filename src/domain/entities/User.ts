@@ -19,8 +19,6 @@ export class User {
   private readonly createdAt: Date;
   private updatedAt: Date;
   private deletedAt: Date | null;
-  
-  // ✅ SOLO UNA VEZ
   private emailVerified: boolean = false;
   private verificationToken: string | null = null;
   private events: DomainEvent[] = [];

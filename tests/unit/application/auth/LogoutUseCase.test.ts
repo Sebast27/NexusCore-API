@@ -4,6 +4,7 @@ import { User } from '../../../../src/domain/entities/User';
 import { Email } from '../../../../src/domain/value-objects/Email';
 import { Password } from '../../../../src/domain/value-objects/Password';
 import { Role } from '../../../../src/domain/enums/Role';
+import { Name } from '../../../../src/domain/value-objects/Name';
 
 const mockUserRepository: jest.Mocked<IUserRepository> = {
   save: jest.fn(),
@@ -25,7 +26,7 @@ describe('LogoutUseCase', () => {
     mockUser = User.create(
       Email.create('test@test.com'),
       await Password.create('Test123!@#'),
-      'Test User',
+      Name.create('Test User'),
       Role.USER
     );
   });
@@ -36,7 +37,7 @@ describe('LogoutUseCase', () => {
       mockUserRepository.findById.mockResolvedValue(mockUser);
 
       // Act
-      await useCase.execute({ userId: mockUser.getId() });
+      await useCase.execute({ userId: mockUser.getId().getValue() });
 
       // Assert
       expect(mockUserRepository.findById).toHaveBeenCalledWith(mockUser.getId());
@@ -49,10 +50,14 @@ describe('LogoutUseCase', () => {
       mockUserRepository.findById.mockResolvedValue(null);
 
       // Act & Assert
-      await expect(useCase.execute({ userId: 'non-existent-id' }))
+      const nonExistentId = '123e4567-e89b-42d3-a456-426614174000';
+      await expect(useCase.execute({ userId: nonExistentId }))
         .rejects
         .toThrow('User not found');
-      expect(mockUserRepository.findById).toHaveBeenCalledWith('non-existent-id');
+      
+      expect(mockUserRepository.findById).toHaveBeenCalledWith(
+        expect.objectContaining({ value: nonExistentId })
+      );
     });
   });
 });

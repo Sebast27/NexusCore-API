@@ -4,8 +4,10 @@ import { IUserRepository } from '../../../../src/domain/interfaces/IUserReposito
 import { User } from '../../../../src/domain/entities/User';
 import { Email } from '../../../../src/domain/value-objects/Email';
 import { Password } from '../../../../src/domain/value-objects/Password';
+import { Name } from '../../../../src/domain/value-objects/Name';
 import { Role } from '../../../../src/domain/enums/Role';
 import jwt from 'jsonwebtoken';
+import bcrypt from 'bcrypt';
 
 // Mock de jsonwebtoken
 jest.mock('jsonwebtoken');
@@ -36,13 +38,14 @@ describe('LoginUserUseCase', () => {
   describe('Success cases', () => {
     it('should login successfully and return token', async () => {
       // Arrange
-      const passwordObj = Password.create(validInput.password);
-      const hashedPassword = await passwordObj.hash();
+      const plainPassword = validInput.password;
+      const hashedPassword = await bcrypt.hash(plainPassword, 10);
       const password = Password.createFromHash(hashedPassword);
+      
       const mockUser = User.create(
         Email.create(validInput.email),
         password,
-        'Test User',
+        Name.create('Test User'),
         Role.USER
       );
       
@@ -54,26 +57,28 @@ describe('LoginUserUseCase', () => {
 
       // Assert
       expect(result).toMatchObject({
-        id: mockUser.getId(),
+        id: mockUser.getId().getValue(),
         email: validInput.email,
-        name: mockUser.getName(),
+        name: mockUser.getName().getValue(),
         role: mockUser.getRole(),
         accessToken: 'mock-jwt-token'
       });
       expect(mockUserRepository.findByEmail).toHaveBeenCalledTimes(1);
-      expect(jwt.sign).toHaveBeenCalledTimes(1);
+      
+      // ✅ CORREGIDO: Se llama 2 veces (access + refresh)
+      expect(jwt.sign).toHaveBeenCalledTimes(2);
     });
 
     it('should call jwt.sign with correct payload', async () => {
       // Arrange
-      const passwordObj = Password.create(validInput.password);
-      const hashedPassword = await passwordObj.hash();
+      const plainPassword = validInput.password;
+      const hashedPassword = await bcrypt.hash(plainPassword, 10);
       const password = Password.createFromHash(hashedPassword);
 
       const mockUser = User.create(
         Email.create(validInput.email),
         password,
-        'Test User',
+        Name.create('Test User'),
         Role.USER
       );
       
@@ -86,7 +91,7 @@ describe('LoginUserUseCase', () => {
       // Assert
       expect(jwt.sign).toHaveBeenCalledWith(
         {
-          id: mockUser.getId(),
+          id: mockUser.getId().getValue(),
           email: mockUser.getEmail().getValue(),
           role: mockUser.getRole()
         },
@@ -111,10 +116,14 @@ describe('LoginUserUseCase', () => {
 
     it('should throw error if password is invalid', async () => {
       // Arrange
+      const plainPassword = validInput.password;
+      const hashedPassword = await bcrypt.hash(plainPassword, 10);
+      const password = Password.createFromHash(hashedPassword);
+      
       const mockUser = User.create(
         Email.create(validInput.email),
-        await Password.create(validInput.password),
-        'Test User',
+        password,
+        Name.create('Test User'),
         Role.USER
       );
       
@@ -166,52 +175,14 @@ describe('LoginUserUseCase', () => {
 
     it('should return refresh token on login', async () => {
       // Arrange
-      const mockUser = User.create(
-        Email.create(validInput.email),
-        await Password.create(validInput.password),
-        'Test User',
-        Role.USER
-      );
+      const plainPassword = validInput.password;
+      const hashedPassword = await bcrypt.hash(plainPassword, 10);
+      const password = Password.createFromHash(hashedPassword);
       
-      mockUserRepository.findByEmail.mockResolvedValue(mockUser);
-      (jwt.sign as jest.Mock).mockReturnValue('mock-jwt-token');
-
-      // Act
-      const result = await useCase.execute(validInput);
-
-      // Assert
-      expect(result).toHaveProperty('refreshToken');
-      expect(result.refreshToken).toBeDefined();
-      expect(typeof result.refreshToken).toBe('string');
-    });
-
-    it('should return refresh token on login', async () => {
-      // Arrange
       const mockUser = User.create(
         Email.create(validInput.email),
-        await Password.create(validInput.password),
-        'Test User',
-        Role.USER
-      );
-      
-      mockUserRepository.findByEmail.mockResolvedValue(mockUser);
-      (jwt.sign as jest.Mock).mockReturnValue('mock-jwt-token');
-
-      // Act
-      const result = await useCase.execute(validInput);
-
-      // Assert
-      expect(result).toHaveProperty('refreshToken');
-      expect(result.refreshToken).toBeDefined();
-      expect(typeof result.refreshToken).toBe('string');
-    });
-
-    it('should return refresh token on login', async () => {
-      // Arrange
-      const mockUser = User.create(
-        Email.create(validInput.email),
-        await Password.create(validInput.password),
-        'Test User',
+        password,
+        Name.create('Test User'),
         Role.USER
       );
       

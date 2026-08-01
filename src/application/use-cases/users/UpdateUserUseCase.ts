@@ -1,4 +1,5 @@
 import { Name } from '../../../domain/value-objects/Name';
+import { UserId } from '../../../domain/value-objects/UserId';
 import { IUserRepository } from '../../../domain/interfaces/IUserRepository';
 import { UserResponseDTO, UserResponseMapper } from '../../dtos/UserResponseDTO';
 
@@ -10,7 +11,8 @@ export interface UpdateUserInput {
 export class UpdateUserUseCase {
   constructor(private userRepository: IUserRepository) {}
 
-  async execute(id: string, input: UpdateUserInput): Promise<UserResponseDTO> {
+  async execute(userId: string, input: UpdateUserInput): Promise<UserResponseDTO> {
+    const id = UserId.fromString(userId);
     const user = await this.userRepository.findById(id);
     if (!user) {
       throw new Error('User not found');

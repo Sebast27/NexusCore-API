@@ -47,12 +47,18 @@ export class RegisterUserUseCase {
         Role.USER
       );
 
+      console.log('💾 Guardando usuario en BD...');
+
       // 5. Guardar en repositorio
       await this.userRepository.save(user);
-      console.log('✅ Usuario guardado con ID:', user.getId());
+      console.log('✅ Usuario guardado con ID:', user.getId().getValue());
 
       // 6. Retornar DTO
-      return UserResponseMapper.toDTO(user);
+      console.log('📤 Convirtiendo a DTO...');
+      const dto = UserResponseMapper.toDTO(user);
+      console.log('✅ DTO creado:', dto);
+
+      return dto;
     } catch (error) {
       console.error('❌ Error en registro:', error);
       // Si es error de Zod, extraemos el mensaje

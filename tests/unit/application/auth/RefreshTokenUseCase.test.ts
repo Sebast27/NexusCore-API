@@ -3,6 +3,7 @@ import { IUserRepository } from '../../../../src/domain/interfaces/IUserReposito
 import { User } from '../../../../src/domain/entities/User';
 import { Email } from '../../../../src/domain/value-objects/Email';
 import { Password } from '../../../../src/domain/value-objects/Password';
+import { Name } from '../../../../src/domain/value-objects/Name';
 import { Role } from '../../../../src/domain/enums/Role';
 import jwt from 'jsonwebtoken';
 
@@ -18,6 +19,8 @@ const mockUserRepository: jest.Mocked<IUserRepository> = {
   delete: jest.fn()
 };
 
+
+
 describe('RefreshTokenUseCase', () => {
   let useCase: RefreshTokenUseCase;
   let mockUser: User;
@@ -29,7 +32,7 @@ describe('RefreshTokenUseCase', () => {
     mockUser = User.create(
       Email.create('test@test.com'),
       await Password.create('Test123!@#'),
-      'Test User',
+      Name.create('Test User'),
       Role.USER
     );
   });
@@ -37,9 +40,9 @@ describe('RefreshTokenUseCase', () => {
   describe('Success cases', () => {
     it('should generate a new access token with valid refresh token', async () => {
       // Arrange
-      const mockRefreshToken = 'valid-refresh-token';
+      const mockRefreshToken = 'valid-refresh-token-string';
       const mockDecoded = {
-        id: mockUser.getId(),
+        id: mockUser.getId().getValue(),
         email: mockUser.getEmail().getValue(),
         role: mockUser.getRole(),
         type: 'refresh'
@@ -110,9 +113,9 @@ describe('RefreshTokenUseCase', () => {
 
     it('should throw error if user not found', async () => {
       // Arrange
-      const mockRefreshToken = 'valid-refresh-token';
+      const mockRefreshToken = 'valid-refresh-token-string';
       const mockDecoded = {
-        id: 'non-existent-id',
+        id: '123e4567-e89b-42d3-a456-426614174000',
         email: 'test@test.com',
         role: 'USER',
         type: 'refresh'
