@@ -20,12 +20,12 @@
     "moduleResolution": "node10",
     "allowSyntheticDefaultImports": true,
     "ignoreDeprecations": "6.0",
-    "types": ["jest", "node"],
+    "types": ["node", "jest"],
     "paths": {
       "@/*": ["./src/*"],
       "@tests/*": ["./tests/*"]
     }
   },
-  "include": ["src/**/*", "tests/**/*"],
+  "include": ["src/**/*", "tests/**/*","prisma/**/*"],
   "exclude": ["node_modules", "dist", "coverage"]
 }

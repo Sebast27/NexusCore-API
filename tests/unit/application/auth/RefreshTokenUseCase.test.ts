@@ -1,12 +1,12 @@
 import { RefreshTokenUseCase } from '../../../../src/application/use-cases/auth/RefreshTokenUseCase';
-import { IUserRepository } from '../../../../src/domain/interfaces/IUserRepository';
+import { IUserRepository } from '../../../../src/domain/interfaces/repositories/IUserRepository'; 
 import { User } from '../../../../src/domain/entities/User';
 import { Email } from '../../../../src/domain/value-objects/Email';
-import { Password } from '../../../../src/domain/value-objects/Password';
+import { PlainPassword } from '../../../../src/domain/value-objects/PlainPassword'; 
 import { Name } from '../../../../src/domain/value-objects/Name';
 import { Role } from '../../../../src/domain/enums/Role';
+import { MockDateProvider } from '../../../mocks/MockDateProvider';
 import jwt from 'jsonwebtoken';
-
 
 jest.mock('jsonwebtoken');
 
@@ -19,21 +19,22 @@ const mockUserRepository: jest.Mocked<IUserRepository> = {
   delete: jest.fn()
 };
 
-
-
 describe('RefreshTokenUseCase', () => {
   let useCase: RefreshTokenUseCase;
+  let mockDateProvider: MockDateProvider;
   let mockUser: User;
 
   beforeEach(async () => {
     jest.clearAllMocks();
+    mockDateProvider = new MockDateProvider();
     useCase = new RefreshTokenUseCase(mockUserRepository);
     
-    mockUser = User.create(
+    mockUser = await User.create( 
       Email.create('test@test.com'),
-      await Password.create('Test123!@#'),
+      PlainPassword.create('Test123!@#'), 
       Name.create('Test User'),
-      Role.USER
+      Role.USER,
+      mockDateProvider
     );
   });
 
@@ -96,10 +97,10 @@ describe('RefreshTokenUseCase', () => {
     it('should throw error if token type is not refresh', async () => {
       // Arrange
       const mockDecoded = {
-        id: mockUser.getId(),
+        id: mockUser.getId().getValue(), // ✅ Usar getValue()
         email: mockUser.getEmail().getValue(),
         role: mockUser.getRole(),
-        type: 'access' // 👈 Tipo incorrecto
+        type: 'access'
       };
       
       (jwt.verify as jest.Mock).mockReturnValue(mockDecoded);

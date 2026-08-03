@@ -60,4 +60,51 @@ describe('Email Value Objetcs', () => {
             expect(email1.equals(email2)).toBe(false);
         });
     });
+
+    describe('Email with length and TLD validation', () => {
+        it('should throw error if email exceeds 254 characters', () => {
+            const longEmail = 'a'.repeat(250) + '@example.com';
+            expect(() => Email.create(longEmail)).toThrow(
+            'exceeds maximum length of 254'
+            );
+        });
+
+        it('should throw error if TLD is too short', () => {
+            expect(() => Email.create('user@domain.c')).toThrow(
+            'TLD must be at least 2 characters'
+            );
+        });
+
+        it('should throw error if domain has no dot', () => {
+            expect(() => Email.create('user@domain')).toThrow(
+            'domain must contain a dot'
+            );
+        });
+
+        it('should throw error if domain has invalid characters', () => {
+            expect(() => Email.create('user@domain!.com')).toThrow(
+            'invalid characters'
+            );
+        });
+
+        it('should accept valid email with plus sign', () => {
+            const email = Email.create('user+filter@gmail.com');
+            expect(email.getValue()).toBe('user+filter@gmail.com');
+        });
+
+        it('should accept valid email with subdomain', () => {
+            const email = Email.create('user@sub.domain.com');
+            expect(email.getValue()).toBe('user@sub.domain.com');
+        });
+
+        it('should get domain from email', () => {
+            const email = Email.create('test@example.com');
+            expect(email.getDomain()).toBe('example.com');
+        });
+
+        it('should get local part from email', () => {
+            const email = Email.create('test@example.com');
+            expect(email.getLocalPart()).toBe('test');
+        });
+    });
 });

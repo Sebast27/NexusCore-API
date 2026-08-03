@@ -1,4 +1,4 @@
-import { IUserRepository } from '../../../domain/interfaces/IUserRepository';
+import { IUserRepository } from '../../../domain/interfaces/repositories/IUserRepository';
 import { User } from '../../../domain/entities/User';
 import { UserId } from '../../../domain/value-objects/UserId';
 import jwt from 'jsonwebtoken';

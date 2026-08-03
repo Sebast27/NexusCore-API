@@ -1,9 +1,9 @@
-// domain/value-objects/Name.ts
+
 export class Name {
   private readonly value: string;
   private static readonly MIN_LENGTH = 2;
   private static readonly MAX_LENGTH = 100;
-  private static readonly NAME_REGEX = /^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/;
+  private static readonly NAME_REGEX = /^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s\-'.]+$/;
 
   private constructor(value: string) {
     this.value = value;
@@ -25,21 +25,48 @@ export class Name {
     }
 
     if (!Name.NAME_REGEX.test(trimmed)) {
-      throw new Error('Name contains invalid characters. Only letters and spaces allowed');
+      throw new Error('Name contains invalid characters. Only letters, spaces, hyphens, apostrophes and periods allowed');
     }
 
-    // ✅ CORREGIDO: Capitalizar correctamente con acentos
-    const formatted = trimmed
-      .toLowerCase()
-      .split(' ')
-      .map(word => {
-        if (word.length === 0) return word;
-        // Capitalizar primera letra respetando acentos
-        return word.charAt(0).toLocaleUpperCase() + word.slice(1);
-      })
-      .join(' ');
+    if (!/[a-zA-ZáéíóúÁÉÍÓÚñÑ]/.test(trimmed)) {
+      throw new Error('Name must contain at least one letter');
+    }
+
+    const formatted = Name.formatName(trimmed);
 
     return new Name(formatted);
+  }
+
+  private static formatName(value: string): string {
+    return value
+      .toLowerCase()
+      .split(' ')
+      .map(word => Name.capitalizeWord(word))
+      .join(' ');
+  }
+
+  private static capitalizeWord(word: string): string {
+    if (word.length === 0) return word;
+
+    if (word.includes("'")) {
+      return word
+        .split("'")
+        .map(part => part.charAt(0).toLocaleUpperCase() + part.slice(1))
+        .join("'");
+    }
+
+    if (word.includes('-')) {
+      return word
+        .split('-')
+        .map(part => part.charAt(0).toLocaleUpperCase() + part.slice(1))
+        .join('-');
+    }
+
+    if (word.includes('.')) {
+      return word.toUpperCase();
+    }
+
+    return word.charAt(0).toLocaleUpperCase() + word.slice(1);
   }
 
   getValue(): string {

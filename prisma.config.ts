@@ -1,25 +1,17 @@
-import 'dotenv/config';
-import { defineConfig } from '@prisma/config';
+import { PrismaPg } from '@prisma/adapter-pg';
+import { defineConfig } from 'prisma/config';
 
-const databaseUrl = process.env.DATABASE_URL || '';
+const databaseUrl = process.env.DATABASE_URL || 'postgresql://postgres:password@localhost:5432/nexuscore_db';
+
+const adapter = new PrismaPg({
+  connectionString: databaseUrl,
+});
 
 export default defineConfig({
-  client: databaseUrl ? {
-    adapter: {
-      name: '@prisma/adapter-pg',
-      options: {
-        connectionString: databaseUrl,
-      },
-    },
-  } : undefined,
-  
-  datasources: {
-    db: {
-      url: databaseUrl,
-    },
-  },
-  
   migrations: {
     seed: 'ts-node prisma/seed.ts',
+  },
+  datasource: {
+    url: databaseUrl,
   },
 });

@@ -5,13 +5,15 @@ import { roleMiddleware } from '../middlewares/roleMiddleware';
 import { UpdateUserUseCase } from '../../../../application/use-cases/users/UpdateUserUseCase';
 import { DeleteUserUseCase } from '../../../../application/use-cases/users/DeleteUserUseCase';
 import { PrismaUserRepository } from '../../database/PrismaUserRepository';
+import { RealDateProvider } from '../../date/RealDateProvider';
 import { prisma } from '../../../../config/prisma';
 
 const router = Router();
 
+const dateProvider = new RealDateProvider();
 const userRepository = new PrismaUserRepository(prisma);
-const updateUserUseCase = new UpdateUserUseCase(userRepository);
-const deleteUserUseCase = new DeleteUserUseCase(userRepository);
+const updateUserUseCase = new UpdateUserUseCase(userRepository, dateProvider);
+const deleteUserUseCase = new DeleteUserUseCase(userRepository, dateProvider);
 const userController = new UserController(updateUserUseCase, deleteUserUseCase);
 
 // Rutas protegidas

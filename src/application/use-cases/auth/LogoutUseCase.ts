@@ -1,4 +1,4 @@
-import { IUserRepository } from '../../../domain/interfaces/IUserRepository';
+import { IUserRepository } from '../../../domain/interfaces/repositories/IUserRepository';
 import { UserId } from '../../../domain/value-objects/UserId';
 
 export interface LogoutInput {

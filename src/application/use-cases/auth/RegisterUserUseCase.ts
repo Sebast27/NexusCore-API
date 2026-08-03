@@ -1,16 +1,16 @@
 import { RegisterUserInput, RegisterUserSchema } from '../../dtos/RegisterUserDTO';
 import { UserResponseDTO, UserResponseMapper } from '../../dtos/UserResponseDTO';
-import { IUserRepository } from '../../../domain/interfaces/IUserRepository';
+import { IUserRepository } from '../../../domain/interfaces/repositories/IUserRepository'; 
 import { Email } from '../../../domain/value-objects/Email';
-import { Password } from '../../../domain/value-objects/Password';
+import { PlainPassword } from '../../../domain/value-objects/PlainPassword';
 import { Name } from '../../../domain/value-objects/Name';
 import { User } from '../../../domain/entities/User';
 import { UserAlreadyExistsError } from '../../errors/UserAlreadyExistsError';
 import { ZodError } from 'zod';
-import { Role } from '@prisma/client';
+import { IDateProvider } from '../../../domain/interfaces/IDateProvider';
 
 export class RegisterUserUseCase {
-  constructor(private userRepository: IUserRepository) {}
+  constructor(private userRepository: IUserRepository, private dateProvider: IDateProvider) {}
 
   async execute(input: RegisterUserInput): Promise<UserResponseDTO> {
     try {
@@ -23,13 +23,7 @@ export class RegisterUserUseCase {
 
       // 2. Crear Value Objects
       const email = Email.create(validatedInput.email);
-      const passwordObj = Password.create(validatedInput.password);
-      const hashedPassword = await passwordObj.hash();
-
-      console.log('🔑 Hashed password:', hashedPassword);
-      console.log('✅ Longitud del hash:', hashedPassword.length);
-
-      const password = Password.createFromHash(hashedPassword);
+      const plainPassword = PlainPassword.create(validatedInput.password);
 
       // 3. Verificar si el email ya existe
       const existingUser = await this.userRepository.findByEmail(email);
@@ -40,11 +34,12 @@ export class RegisterUserUseCase {
       const name = Name.create(validatedInput.name);
 
       // 4. Crear entidad User
-      const user = User.create(
+      const user = await User.create(
         email,
-        password,
+        plainPassword,
         name,
-        Role.USER
+        'USER',
+        this.dateProvider
       );
 
       console.log('💾 Guardando usuario en BD...');
@@ -61,7 +56,6 @@ export class RegisterUserUseCase {
       return dto;
     } catch (error) {
       console.error('❌ Error en registro:', error);
-      // Si es error de Zod, extraemos el mensaje
       if (error instanceof ZodError) {
         throw error;
       }

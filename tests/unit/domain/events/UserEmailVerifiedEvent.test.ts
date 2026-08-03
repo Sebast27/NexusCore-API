@@ -67,6 +67,8 @@ describe('UserEmailVerifiedEvent', () => {
         eventName: 'user.email.verified',
         userId: userId,
         email: email,
+        verifiedBy: 'user', 
+        metadata: null,     
         occurredOn: event.occurredOn.toISOString(),
       });
     });

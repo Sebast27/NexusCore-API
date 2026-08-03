@@ -1,253 +1,243 @@
 import { User } from '../../../src/domain/entities/User';
 import { Email } from '../../../src/domain/value-objects/Email';
-import { Password } from '../../../src/domain/value-objects/Password';
 import { Name } from '../../../src/domain/value-objects/Name';
+import { PlainPassword } from '../../../src/domain/value-objects/PlainPassword';
+import { HashedPassword } from '../../../src/domain/value-objects/HashedPassword';
 import { UserRegisteredEvent } from '../../../src/domain/events/UserRegisteredEvent';
 import { UserDeletedEvent } from '../../../src/domain/events/UserDeletedEvent';
 import { UserPasswordChangedEvent } from '../../../src/domain/events/UserPasswordChangedEvent';
 import { UserEmailVerifiedEvent } from '../../../src/domain/events/UserEmailVerifiedEvent';
+import { MockDateProvider } from '../../mocks/MockDateProvider';
 
 describe('User Entity', () => {
+  const mockDateProvider = new MockDateProvider(new Date('2024-01-15T10:00:00.000Z'));
 
-  const createTestUser = () => {
-    return User.create(
+  const createTestUser = async () => {
+    return await User.create(
       Email.create('test@example.com'),
-      Password.create('SecurePass123!'),
+      PlainPassword.create('SecurePass123!'),
       Name.create('Test User'),
-      'USER'
+      'USER',
+      mockDateProvider 
     );
   }
 
   describe('create', () => {
-    it('should create a valid user', () => {
-      // Arrange
+    it('should create a valid user', async () => {
       const email = Email.create('test@example.com');
-      const password = Password.create('SecurePass123!');
+      const password = PlainPassword.create('SecurePass123!');
       const name = Name.create('Test User');
       const role = 'USER';
 
-      // Act
-      const user = User.create(email, password, name, role);
+      const user = await User.create(email, password, name, role, mockDateProvider);
 
-      // Assert
       expect(user).toBeDefined();
       expect(user.getId()).toBeDefined();
       expect(user.getEmail()).toBe(email);
-      expect(user.getPassword()).toBe(password);
+      expect(user.getPassword()).toBeInstanceOf(HashedPassword);
       expect(user.getName()).toBe(name);
       expect(user.getRole()).toBe('USER');
-      expect(user.getCreatedAt()).toBeInstanceOf(Date);
-      expect(user.getUpdatedAt()).toBeInstanceOf(Date);
+      expect(user.getCreatedAt()).toEqual(new Date('2024-01-15T10:00:00.000Z'));
+      expect(user.getUpdatedAt()).toEqual(new Date('2024-01-15T10:00:00.000Z'));
       expect(user.getDeletedAt()).toBeNull();
     });
 
-    it('should create a user with ADMIN role', () => {
-      // Arrange
+    it('should create a user with ADMIN role', async () => {
       const email = Email.create('admin@example.com');
-      const password = Password.create('SecurePass123!');
+      const password = PlainPassword.create('SecurePass123!');
       const name = Name.create('Admin User');
       const role = 'ADMIN';
 
-      // Act
-      const user = User.create(email, password, name, role);
+      const user = await User.create(email, password, name, role, mockDateProvider);
 
-      // Assert
       expect(user.getRole()).toBe('ADMIN');
     });
 
-    it('should throw error for invalid role', () => {
-      // Arrange
+    it('should throw error for invalid role', async () => {
       const email = Email.create('test@example.com');
-      const password = Password.create('SecurePass123!');
+      const password = PlainPassword.create('SecurePass123!');
       const name = Name.create('Test User');
       const role = 'INVALID_ROLE';
 
-      // Act & Assert
-      expect(() => User.create(email, password, name, role)).toThrow(
+      await expect(User.create(email, password, name, role, mockDateProvider)).rejects.toThrow(
         'Invalid role: INVALID_ROLE'
       );
     });
   });
 
   describe('update', () => {
-    it('should update user name', () => {
-      // Arrange
-      const user = User.create(
+    it('should update user name', async () => {
+      const user = await User.create(
         Email.create('test@example.com'),
-        Password.create('SecurePass123!'),
+        PlainPassword.create('SecurePass123!'),
         Name.create('Old Name'),
-        'USER'
+        'USER',
+        mockDateProvider
       );
 
-      // Act
-      user.updateName(Name.create('New Name'));
+      user.updateName(Name.create('New Name'), mockDateProvider);
 
-      // Assert
       expect(user.getName().getValue()).toBe('New Name');
+      expect(user.getUpdatedAt()).toEqual(new Date('2024-01-15T10:00:00.000Z'));
     });
 
-    it('should update user role', () => {
-      // Arrange
-      const user = User.create(
+    it('should update user role', async () => {
+      const user = await User.create(
         Email.create('test@example.com'),
-        Password.create('SecurePass123!'),
+        PlainPassword.create('SecurePass123!'),
         Name.create('Test User'),
-        'USER'
+        'USER',
+        mockDateProvider
       );
 
-      // Act
-      user.updateRole('EDITOR');
+      user.updateRole('EDITOR', 'admin@example.com', mockDateProvider, 'Role change');
 
-      // Assert
       expect(user.getRole()).toBe('EDITOR');
+      expect(user.getUpdatedAt()).toEqual(new Date('2024-01-15T10:00:00.000Z'));
     });
 
-    it('should throw error for invalid role on update', () => {
-      // Arrange
-      const user = User.create(
+    it('should throw error for invalid role on update', async () => {
+      const user = await User.create(
         Email.create('test@example.com'),
-        Password.create('SecurePass123!'),
+        PlainPassword.create('SecurePass123!'),
         Name.create('Test User'),
-        'USER'
+        'USER',
+        mockDateProvider
       );
 
-      // Act & Assert
-      expect(() => user.updateRole('INVALID_ROLE')).toThrow(
+      expect(() => user.updateRole('INVALID_ROLE', 'admin@example.com', mockDateProvider)).toThrow(
         'Invalid role: INVALID_ROLE'
       );
     });
   });
 
   describe('softDelete', () => {
-    it('should soft delete user', () => {
-      // Arrange
-      const user = User.create(
+    it('should soft delete user', async () => {
+      const user = await User.create(
         Email.create('test@example.com'),
-        Password.create('SecurePass123!'),
+        PlainPassword.create('SecurePass123!'),
         Name.create('Test User'),
-        'USER'
+        'USER',
+        mockDateProvider
       );
 
-      // Act
-      user.softDelete('admin@example.com', 'Test deletion');
+      user.softDelete('admin@example.com', 'Test deletion', mockDateProvider);
 
-      // Assert
-      expect(user.getDeletedAt()).toBeInstanceOf(Date);
+      expect(user.getDeletedAt()).toEqual(new Date('2024-01-15T10:00:00.000Z'));
       expect(user.isDeleted()).toBe(true);
     });
   });
 
   describe('restore', () => {
-    it('should restore a soft deleted user', () => {
-      // Arrange
-      const user = User.create(
+    it('should restore a soft deleted user', async () => {
+      const user = await User.create(
         Email.create('test@example.com'),
-        Password.create('SecurePass123!'),
+        PlainPassword.create('SecurePass123!'),
         Name.create('Test User'),
-        'USER'
+        'USER',
+        mockDateProvider
       );
-      user.softDelete('admin@example.com', 'Test deletion');
+      user.softDelete('admin@example.com', 'Test deletion', mockDateProvider);
 
-      // Act
-      user.restore();
+      user.restore('admin@example.com', mockDateProvider, 'Restoring user');
 
-      // Assert
       expect(user.getDeletedAt()).toBeNull();
       expect(user.isDeleted()).toBe(false);
+      expect(user.getUpdatedAt()).toEqual(new Date('2024-01-15T10:00:00.000Z'));
     });
   });
 
-    describe('softDelete - edge cases', () => {
-    it('should throw error when trying to delete already deleted user', () => {
-      // Arrange
-      const user = User.create(
+  describe('softDelete - edge cases', () => {
+    it('should throw error when trying to delete already deleted user', async () => {
+      const user = await User.create(
         Email.create('test@example.com'),
-        Password.create('SecurePass123!'),
+        PlainPassword.create('SecurePass123!'),
         Name.create('Test User'),
-        'USER'
+        'USER',
+        mockDateProvider
       );
-      user.softDelete('admin@example.com', 'Test deletion');
+      user.softDelete('admin@example.com', 'Test deletion', mockDateProvider);
 
-      // Act & Assert
-      expect(() => user.softDelete('admin@example.com', 'Test deletion')).toThrow('User is already deleted');
+      expect(() => user.softDelete('admin@example.com', 'Test deletion', mockDateProvider)).toThrow(
+        'User is already deleted'
+      );
     });
   });
 
   describe('restore - edge cases', () => {
-    it('should throw error when trying to restore a non-deleted user', () => {
-      // Arrange
-      const user = User.create(
+    it('should throw error when trying to restore a non-deleted user', async () => {
+      const user = await User.create(
         Email.create('test@example.com'),
-        Password.create('SecurePass123!'),
+        PlainPassword.create('SecurePass123!'),
         Name.create('Test User'),
-        'USER'
+        'USER',
+        mockDateProvider
       );
 
-      // Act & Assert
-      expect(() => user.restore()).toThrow('User is not deleted');
+      expect(() => user.restore('admin@example.com', mockDateProvider)).toThrow(
+        'User is not deleted'
+      );
     });
   });
 
   describe('updateName - edge cases', () => {
-    it('should throw error when updating name to empty string', () => {
-      // Arrange
-      const user = User.create(
+    it('should throw error when updating name to empty string', async () => {
+      const user = await User.create(
         Email.create('test@example.com'),
-        Password.create('SecurePass123!'),
+        PlainPassword.create('SecurePass123!'),
         Name.create('Test User'),
-        'USER'
+        'USER',
+        mockDateProvider
       );
 
-      // Act & Assert
-      expect(() => user.updateName(Name.create(''))).toThrow('Name cannot be empty');
+      expect(() => user.updateName(Name.create(''), mockDateProvider)).toThrow(
+        'Name cannot be empty'
+      );
     });
 
-    it('should throw error when updating name to only spaces', () => {
-      // Arrange
-      const user = User.create(
+    it('should throw error when updating name to only spaces', async () => {
+      const user = await User.create(
         Email.create('test@example.com'),
-        Password.create('SecurePass123!'),
+        PlainPassword.create('SecurePass123!'),
         Name.create('Test User'),
-        'USER'
+        'USER',
+        mockDateProvider
       );
 
-      // Act & Assert
-      expect(() => user.updateName(Name.create('    '))).toThrow('Name cannot be empty');
+      expect(() => user.updateName(Name.create('    '), mockDateProvider)).toThrow(
+        'Name cannot be empty'
+      );
     });
   });
 
   describe('updatePassword', () => {
-    it('should update user password', () => {
-      // Arrange
-      const user = User.create(
+    it('should update user password', async () => {
+      const user = await User.create(
         Email.create('test@example.com'),
-        Password.create('SecurePass123!'),
+        PlainPassword.create('SecurePass123!'),
         Name.create('Test User'),
-        'USER'
+        'USER',
+        mockDateProvider
       );
-      const newPassword = Password.create('NewSecurePass123!');
+      const newPassword = PlainPassword.create('NewSecurePass123!');
 
-      // Act
-      user.updatePassword(newPassword);
+      await user.updatePassword(newPassword, 'user@example.com', mockDateProvider, 'user_initiated');
 
-      // Assert
-      expect(user.getPassword()).toBe(newPassword);
+      expect(user.getPassword()).toBeInstanceOf(HashedPassword);
+      expect(user.getUpdatedAt()).toEqual(new Date('2024-01-15T10:00:00.000Z'));
     });
   });
 
   describe('Eventos de Dominio', () => {
     describe('UserRegisteredEvent', () => {
-      it('should emit UserRegisteredEvent when user is created', () => {
-        // Arrange
+      it('should emit UserRegisteredEvent when user is created', async () => {
         const email = Email.create('test@example.com');
-        const password = Password.create('SecurePass123!');
+        const password = PlainPassword.create('SecurePass123!');
         const name = Name.create('Test User');
         const role = 'USER';
 
-        // Act
-        const user = User.create(email, password, name, role);
+        const user = await User.create(email, password, name, role, mockDateProvider);
 
-        // Assert
         const events = user.getEvents();
         expect(events).toHaveLength(1);
         
@@ -257,34 +247,29 @@ describe('User Entity', () => {
         expect(event.userId).toBe(user.getId().getValue());
         expect(event.email).toBe(email.getValue());
         expect(event.name).toBe(name.getValue());
+        expect(event.role).toBe(role);
         expect(event.occurredOn).toBeInstanceOf(Date);
       });
 
-      it('should clear events after calling clearEvents()', () => {
-        // Arrange
-        const user = createTestUser();
+      it('should clear events after calling clearEvents()', async () => {
+        const user = await createTestUser();
         expect(user.getEvents()).toHaveLength(1);
 
-        // Act
         user.clearEvents();
 
-        // Assert
         expect(user.getEvents()).toHaveLength(0);
       });
     });
 
     describe('UserDeletedEvent', () => {
-      it('should emit UserDeletedEvent when user is soft deleted', () => {
-        // Arrange
-        const user = createTestUser();
-        user.clearEvents(); // Limpiar evento de registro
+      it('should emit UserDeletedEvent when user is soft deleted', async () => {
+        const user = await createTestUser();
+        user.clearEvents();
         const deletedBy = 'admin@example.com';
         const reason = 'User requested deletion';
 
-        // Act
-        user.softDelete(deletedBy, reason);
+        user.softDelete(deletedBy, reason, mockDateProvider);
 
-        // Assert
         const events = user.getEvents();
         expect(events).toHaveLength(1);
         
@@ -297,17 +282,14 @@ describe('User Entity', () => {
         expect(event.occurredOn).toBeInstanceOf(Date);
       });
 
-      it('should emit UserDeletedEvent when user is permanently deleted', () => {
-        // Arrange
-        const user = createTestUser();
+      it('should emit UserDeletedEvent when user is permanently deleted', async () => {
+        const user = await createTestUser();
         user.clearEvents();
         const deletedBy = 'admin@example.com';
         const reason = 'User violated terms of service';
 
-        // Act
         user.permanentDelete(deletedBy, reason);
 
-        // Assert
         const events = user.getEvents();
         expect(events).toHaveLength(1);
         
@@ -321,16 +303,13 @@ describe('User Entity', () => {
     });
 
     describe('UserPasswordChangedEvent', () => {
-      it('should emit UserPasswordChangedEvent when password is updated', () => {
-        // Arrange
-        const user = createTestUser();
+      it('should emit UserPasswordChangedEvent when password is updated', async () => {
+        const user = await createTestUser();
         user.clearEvents();
-        const newPassword = Password.create('NewSecurePass456!');
+        const newPassword = PlainPassword.create('NewSecurePass456!');
 
-        // Act
-        user.updatePassword(newPassword);
+        await user.updatePassword(newPassword, 'user@example.com', mockDateProvider, 'user_initiated');
 
-        // Assert
         const events = user.getEvents();
         expect(events).toHaveLength(1);
         
@@ -338,23 +317,20 @@ describe('User Entity', () => {
         expect(event).toBeInstanceOf(UserPasswordChangedEvent);
         expect(event.eventName).toBe('user.password.changed');
         expect(event.userId).toBe(user.getId().getValue());
+        expect(event.changedBy).toBe('user@example.com');
         expect(event.occurredOn).toBeInstanceOf(Date);
       });
     });
 
     describe('UserEmailVerifiedEvent', () => {
-      it('should emit UserEmailVerifiedEvent when email is verified', () => {
-        // Arrange
-        const user = createTestUser();
+      it('should emit UserEmailVerifiedEvent when email is verified', async () => {
+        const user = await createTestUser();
         user.clearEvents();
 
-        // Generar token
         const token = user.generateVerificationToken();
 
-        // Act
-        user.verifyEmail(token);
+        user.verifyEmail(token, mockDateProvider);
 
-        // Assert
         const events = user.getEvents();
         expect(events).toHaveLength(1);
         
@@ -368,22 +344,16 @@ describe('User Entity', () => {
     });
 
     describe('Múltiples eventos', () => {
-      it('should accumulate multiple events', () => {
-        // Arrange
-        const user = createTestUser(); // Emite UserRegisteredEvent
-        user.clearEvents(); // Limpiar
+      it('should accumulate multiple events', async () => {
+        const user = await createTestUser();
+        user.clearEvents();
 
-        // Generar token
         const token = user.generateVerificationToken();
 
-        // Act - Realizar múltiples acciones
-        user.updatePassword(Password.create('NewPassword123!'));
-        user.verifyEmail(token);
-        
-        // El soft delete requiere deletedBy y reason
-        user.softDelete('admin@example.com', 'Testing multiple events');
+        await user.updatePassword(PlainPassword.create('NewPassword123!'), 'user@example.com', mockDateProvider, 'user_initiated');
+        user.verifyEmail(token, mockDateProvider);
+        user.softDelete('admin@example.com', 'Testing multiple events', mockDateProvider);
 
-        // Assert
         const events = user.getEvents();
         expect(events).toHaveLength(3);
         
@@ -394,36 +364,28 @@ describe('User Entity', () => {
     });
 
     describe('Auditoría', () => {
-      it('should provide audit trail through events', () => {
-        // Arrange
-        const user = createTestUser();
+      it('should provide audit trail through events', async () => {
+        const user = await createTestUser();
         user.clearEvents();
 
-        // Generar token
         const token = user.generateVerificationToken();
 
-        // Act - Simular acciones de usuario
-        user.updatePassword(Password.create('NewPassword123!'));
-        user.verifyEmail(token);
-        user.softDelete('admin@example.com', 'User requested deletion');
+        await user.updatePassword(PlainPassword.create('NewPassword123!'), 'user@example.com', mockDateProvider, 'user_initiated');
+        user.verifyEmail(token, mockDateProvider);
+        user.softDelete('admin@example.com', 'User requested deletion', mockDateProvider);
 
-        // Assert - Verificar que los eventos proporcionan trazabilidad
         const events = user.getEvents();
         
-        // Cada evento tiene timestamp
         events.forEach(event => {
           expect(event.occurredOn).toBeInstanceOf(Date);
         });
 
-        // Orden cronológico (el primero es el más antiguo)
         expect(events[0].occurredOn.getTime()).toBeLessThanOrEqual(events[1].occurredOn.getTime());
         expect(events[1].occurredOn.getTime()).toBeLessThanOrEqual(events[2].occurredOn.getTime());
 
-        // Verificar que podemos convertir a JSON para logging
         const auditLog = events.map(event => (event as any).toJSON());
         expect(auditLog).toHaveLength(3);
         
-        // Verificar estructura del log
         auditLog.forEach(log => {
           expect(log).toHaveProperty('eventName');
           expect(log).toHaveProperty('occurredOn');

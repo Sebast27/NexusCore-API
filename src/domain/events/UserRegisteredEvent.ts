@@ -1,37 +1,37 @@
-import { DomainEvent } from './DomainEvent';
+import { BaseDomainEvent } from './BaseDomainEvent';
 
-export class UserRegisteredEvent implements DomainEvent {
+export class UserRegisteredEvent extends BaseDomainEvent {
   public readonly eventName = 'user.registered';
-  public readonly occurredOn: Date;
 
   constructor(
     public readonly userId: string,
     public readonly email: string,
-    public readonly name: string
+    public readonly name: string,
+    public readonly role: string,
+    metadata?: {
+      ipAddress?: string;
+      userAgent?: string;
+      correlationId?: string;
+    }
   ) {
+    super('user.registered', metadata);
     this.validate();
-    this.occurredOn = new Date();
   }
 
   private validate(): void {
-    if (!this.userId || this.userId.trim() === '') {
-      throw new Error('UserId is required');
-    }
-    if (!this.email || this.email.trim() === '') {
-      throw new Error('Email is required');
-    }
-    if (!this.name || this.name.trim() === '') {
-      throw new Error('Name is required');
-    }
+    this.validateUserId(this.userId);
+    this.validateEmail(this.email);
+    this.validateName(this.name);
+    this.validateRequired(this.role, 'Role');
   }
 
   toJSON(): Record<string, unknown> {
     return {
-      eventName: this.eventName,
+      ...super.toJSON(),
       userId: this.userId,
       email: this.email,
       name: this.name,
-      occurredOn: this.occurredOn.toISOString(),
+      role: this.role,
     };
   }
 }

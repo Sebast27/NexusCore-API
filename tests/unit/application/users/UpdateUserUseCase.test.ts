@@ -1,10 +1,10 @@
 import { UpdateUserUseCase } from '../../../../src/application/use-cases/users/UpdateUserUseCase';
-import { IUserRepository } from '../../../../src/domain/interfaces/IUserRepository';
+import { IUserRepository } from '../../../../src/domain/interfaces/repositories/IUserRepository'; 
 import { User } from '../../../../src/domain/entities/User';
 import { Email } from '../../../../src/domain/value-objects/Email';
-import { Password } from '../../../../src/domain/value-objects/Password';
+import { PlainPassword } from '../../../../src/domain/value-objects/PlainPassword';
 import { Name } from '../../../../src/domain/value-objects/Name';
-import { Role } from '../../../../src/domain/enums/Role';
+import { MockDateProvider } from '../../../mocks/MockDateProvider';
 
 const mockUserRepository: jest.Mocked<IUserRepository> = {
   save: jest.fn(),
@@ -17,17 +17,20 @@ const mockUserRepository: jest.Mocked<IUserRepository> = {
 
 describe('UpdateUserUseCase', () => {
   let useCase: UpdateUserUseCase;
+  let mockDateProvider: MockDateProvider;
   let mockUser: User;
 
   beforeEach(async () => {
     jest.clearAllMocks();
-    useCase = new UpdateUserUseCase(mockUserRepository);
+    mockDateProvider = new MockDateProvider();
+    useCase = new UpdateUserUseCase(mockUserRepository, mockDateProvider);
     
-    mockUser = User.create(
+    mockUser = await User.create( 
       Email.create('test@test.com'),
-      await Password.create('Test123!@#'),
+      PlainPassword.create('Test123!@#'),
       Name.create('Test User'),
-      Role.USER
+      'USER',
+      mockDateProvider
     );
   });
 
@@ -37,16 +40,15 @@ describe('UpdateUserUseCase', () => {
       mockUserRepository.findById.mockResolvedValue(mockUser);
       mockUserRepository.update.mockResolvedValue();
 
-      // ✅ CORREGIDO: usar Name.create()
       const newName = Name.create('Updated Name');
       
       // Act
       const result = await useCase.execute(
-        mockUser.getId().getValue(), // ← Convertir a string
+        mockUser.getId().getValue(),
         { name: newName }
       );
 
-      // ✅ CORREGIDO: getName() devuelve Name, usar .getValue()
+      // Assert
       expect(result.name).toBe('Updated Name');
       expect(mockUserRepository.update).toHaveBeenCalledWith(mockUser);
     });
@@ -58,12 +60,12 @@ describe('UpdateUserUseCase', () => {
 
       // Act
       const result = await useCase.execute(
-        mockUser.getId().getValue(), // ← Convertir a string
-        { role: Role.ADMIN }
+        mockUser.getId().getValue(),
+        { role: 'ADMIN' } 
       );
 
-      // ✅ CORREGIDO: getRole() devuelve Role
-      expect(result.role).toBe(Role.ADMIN);
+      // Assert
+      expect(result.role).toBe('ADMIN'); 
       expect(mockUserRepository.update).toHaveBeenCalledWith(mockUser);
     });
 
@@ -72,18 +74,17 @@ describe('UpdateUserUseCase', () => {
       mockUserRepository.findById.mockResolvedValue(mockUser);
       mockUserRepository.update.mockResolvedValue();
 
-      // ✅ CORREGIDO: usar Name.create()
       const newName = Name.create('New Name');
       
       // Act
       const result = await useCase.execute(
-        mockUser.getId().getValue(), // ← Convertir a string
-        { name: newName, role: Role.ADMIN }
+        mockUser.getId().getValue(),
+        { name: newName, role: 'ADMIN' } 
       );
 
-      // ✅ CORREGIDO: usar getters correctos
+      // Assert
       expect(result.name).toBe('New Name');
-      expect(result.role).toBe(Role.ADMIN);
+      expect(result.role).toBe('ADMIN'); 
       expect(mockUserRepository.update).toHaveBeenCalledWith(mockUser);
     });
   });
@@ -94,9 +95,9 @@ describe('UpdateUserUseCase', () => {
       mockUserRepository.findById.mockResolvedValue(null);
 
       const nonExistentId = '123e4567-e89b-42d3-a456-426614174000';
+      
       // Act & Assert
-      await expect(useCase.execute(nonExistentId, { name: Name.create('New Name') } 
-      ))
+      await expect(useCase.execute(nonExistentId, { name: Name.create('New Name') }))
         .rejects
         .toThrow('User not found');
       expect(mockUserRepository.update).not.toHaveBeenCalled();
@@ -109,7 +110,7 @@ describe('UpdateUserUseCase', () => {
       // Act & Assert
       await expect(useCase.execute(
         mockUser.getId().getValue(),
-        { role: 'INVALID_ROLE' as Role }
+        { role: 'INVALID_ROLE' as any }
       ))
         .rejects
         .toThrow('Invalid role: INVALID_ROLE');

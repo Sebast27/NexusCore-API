@@ -1,8 +1,9 @@
-import { IUserRepository } from '../../../domain/interfaces/IUserRepository';
+import { IUserRepository } from '../../../domain/interfaces/repositories/IUserRepository';
 import { UserId } from '../../../domain/value-objects/UserId';
+import { IDateProvider } from '../../../domain/interfaces/IDateProvider';
 
 export class DeleteUserUseCase {
-  constructor(private userRepository: IUserRepository) {}
+  constructor(private userRepository: IUserRepository, private dateProvider: IDateProvider) {}
 
   async execute(
     userId: string,
@@ -17,7 +18,7 @@ export class DeleteUserUseCase {
     }
     
     // Soft delete con auditoría
-    user.softDelete(deletedBy, reason);
+    user.softDelete(deletedBy, reason, this.dateProvider);
     await this.userRepository.update(user);
   }
 }

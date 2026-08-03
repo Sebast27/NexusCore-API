@@ -1,18 +1,17 @@
 import { LoginUserUseCase } from '../../../../src/application/use-cases/auth/LoginUserUseCase';
 import { LoginUserInput } from '../../../../src/application/dtos/LoginUserDTO';
-import { IUserRepository } from '../../../../src/domain/interfaces/IUserRepository';
+import { IUserRepository } from '../../../../src/domain/interfaces/repositories/IUserRepository';
+import { ILoginAttemptRepository } from '../../../../src/domain/interfaces/repositories/ILoginAttemptRepository';
 import { User } from '../../../../src/domain/entities/User';
 import { Email } from '../../../../src/domain/value-objects/Email';
-import { Password } from '../../../../src/domain/value-objects/Password';
+import { PlainPassword } from '../../../../src/domain/value-objects/PlainPassword';
 import { Name } from '../../../../src/domain/value-objects/Name';
 import { Role } from '../../../../src/domain/enums/Role';
+import { MockDateProvider } from '../../../mocks/MockDateProvider'; // ✅ IMPORTAR
 import jwt from 'jsonwebtoken';
-import bcrypt from 'bcrypt';
 
-// Mock de jsonwebtoken
 jest.mock('jsonwebtoken');
 
-// Mock del repositorio
 const mockUserRepository: jest.Mocked<IUserRepository> = {
   save: jest.fn(),
   findByEmail: jest.fn(),
@@ -22,12 +21,27 @@ const mockUserRepository: jest.Mocked<IUserRepository> = {
   delete: jest.fn()
 };
 
+const mockLoginAttemptRepository: jest.Mocked<ILoginAttemptRepository> = {
+  save: jest.fn(),
+  saveMany: jest.fn(),
+  findByEmail: jest.fn(),
+  findByIpAddress: jest.fn(),
+  findByUserId: jest.fn(),
+  getRecentFailures: jest.fn(),
+  getFailuresByIp: jest.fn()
+};
+
 describe('LoginUserUseCase', () => {
   let useCase: LoginUserUseCase;
+  let mockDateProvider: MockDateProvider; // ✅ DECLARAR
 
   beforeEach(() => {
     jest.clearAllMocks();
-    useCase = new LoginUserUseCase(mockUserRepository);
+    mockDateProvider = new MockDateProvider(); // ✅ CREAR
+    useCase = new LoginUserUseCase(
+      mockUserRepository,
+      mockLoginAttemptRepository
+    );
   });
 
   const validInput: LoginUserInput = {
@@ -37,25 +51,20 @@ describe('LoginUserUseCase', () => {
 
   describe('Success cases', () => {
     it('should login successfully and return token', async () => {
-      // Arrange
-      const plainPassword = validInput.password;
-      const hashedPassword = await bcrypt.hash(plainPassword, 10);
-      const password = Password.createFromHash(hashedPassword);
-      
-      const mockUser = User.create(
+      // ✅ Pasar mockDateProvider a User.create
+      const mockUser = await User.create(
         Email.create(validInput.email),
-        password,
+        PlainPassword.create(validInput.password),
         Name.create('Test User'),
-        Role.USER
+        Role.USER,
+        mockDateProvider // ✅ PASAR
       );
       
       mockUserRepository.findByEmail.mockResolvedValue(mockUser);
       (jwt.sign as jest.Mock).mockReturnValue('mock-jwt-token');
 
-      // Act
       const result = await useCase.execute(validInput);
 
-      // Assert
       expect(result).toMatchObject({
         id: mockUser.getId().getValue(),
         email: validInput.email,
@@ -64,31 +73,24 @@ describe('LoginUserUseCase', () => {
         accessToken: 'mock-jwt-token'
       });
       expect(mockUserRepository.findByEmail).toHaveBeenCalledTimes(1);
-      
-      // ✅ CORREGIDO: Se llama 2 veces (access + refresh)
       expect(jwt.sign).toHaveBeenCalledTimes(2);
+      expect(mockLoginAttemptRepository.save).toHaveBeenCalledTimes(1);
     });
 
     it('should call jwt.sign with correct payload', async () => {
-      // Arrange
-      const plainPassword = validInput.password;
-      const hashedPassword = await bcrypt.hash(plainPassword, 10);
-      const password = Password.createFromHash(hashedPassword);
-
-      const mockUser = User.create(
+      const mockUser = await User.create(
         Email.create(validInput.email),
-        password,
+        PlainPassword.create(validInput.password),
         Name.create('Test User'),
-        Role.USER
+        Role.USER,
+        mockDateProvider // ✅ PASAR
       );
       
       mockUserRepository.findByEmail.mockResolvedValue(mockUser);
       (jwt.sign as jest.Mock).mockReturnValue('mock-jwt-token');
 
-      // Act
       await useCase.execute(validInput);
 
-      // Assert
       expect(jwt.sign).toHaveBeenCalledWith(
         {
           id: mockUser.getId().getValue(),
@@ -103,10 +105,8 @@ describe('LoginUserUseCase', () => {
 
   describe('Error cases', () => {
     it('should throw error if user not found', async () => {
-      // Arrange
       mockUserRepository.findByEmail.mockResolvedValue(null);
 
-      // Act & Assert
       await expect(useCase.execute(validInput))
         .rejects
         .toThrow('Invalid credentials');
@@ -115,21 +115,16 @@ describe('LoginUserUseCase', () => {
     });
 
     it('should throw error if password is invalid', async () => {
-      // Arrange
-      const plainPassword = validInput.password;
-      const hashedPassword = await bcrypt.hash(plainPassword, 10);
-      const password = Password.createFromHash(hashedPassword);
-      
-      const mockUser = User.create(
+      const mockUser = await User.create(
         Email.create(validInput.email),
-        password,
+        PlainPassword.create(validInput.password),
         Name.create('Test User'),
-        Role.USER
+        Role.USER,
+        mockDateProvider // ✅ PASAR
       );
       
       mockUserRepository.findByEmail.mockResolvedValue(mockUser);
 
-      // Act & Assert
       const invalidInput = { ...validInput, password: 'WrongPassword123!' };
       await expect(useCase.execute(invalidInput))
         .rejects
@@ -138,10 +133,8 @@ describe('LoginUserUseCase', () => {
     });
 
     it('should throw error if email is invalid', async () => {
-      // Arrange
       const invalidInput = { ...validInput, email: 'invalid-email' };
 
-      // Act & Assert
       await expect(useCase.execute(invalidInput))
         .rejects
         .toThrow('Invalid email format');
@@ -150,10 +143,8 @@ describe('LoginUserUseCase', () => {
     });
 
     it('should throw error if email is empty', async () => {
-      // Arrange
       const invalidInput = { ...validInput, email: '' };
 
-      // Act & Assert
       await expect(useCase.execute(invalidInput))
         .rejects
         .toThrow('Email is required');
@@ -162,10 +153,8 @@ describe('LoginUserUseCase', () => {
     });
 
     it('should throw error if password is empty', async () => {
-      // Arrange
       const invalidInput = { ...validInput, password: '' };
 
-      // Act & Assert
       await expect(useCase.execute(invalidInput))
         .rejects
         .toThrow('Password is required');
@@ -174,25 +163,19 @@ describe('LoginUserUseCase', () => {
     });
 
     it('should return refresh token on login', async () => {
-      // Arrange
-      const plainPassword = validInput.password;
-      const hashedPassword = await bcrypt.hash(plainPassword, 10);
-      const password = Password.createFromHash(hashedPassword);
-      
-      const mockUser = User.create(
+      const mockUser = await User.create(
         Email.create(validInput.email),
-        password,
+        PlainPassword.create(validInput.password),
         Name.create('Test User'),
-        Role.USER
+        Role.USER,
+        mockDateProvider // ✅ PASAR
       );
       
       mockUserRepository.findByEmail.mockResolvedValue(mockUser);
       (jwt.sign as jest.Mock).mockReturnValue('mock-jwt-token');
 
-      // Act
       const result = await useCase.execute(validInput);
 
-      // Assert
       expect(result).toHaveProperty('refreshToken');
       expect(result.refreshToken).toBeDefined();
       expect(typeof result.refreshToken).toBe('string');

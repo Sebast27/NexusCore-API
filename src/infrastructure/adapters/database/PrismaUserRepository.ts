@@ -1,10 +1,10 @@
-import { PrismaClient, Role as PrismaRole } from '@prisma/client';
+import { PrismaClient, Role as PrismaRole, Prisma } from '@prisma/client';
 import { User } from '../../../domain/entities/User';
-import { UserId } from '../../../domain/value-objects/UserId'
+import { UserId } from '../../../domain/value-objects/UserId';
 import { Email } from '../../../domain/value-objects/Email';
-import { Password } from '../../../domain/value-objects/Password';
+import { HashedPassword } from '../../../domain/value-objects/HashedPassword';
 import { Name } from '../../../domain/value-objects/Name';
-import { IUserRepository } from '../../../domain/interfaces/IUserRepository';
+import { IUserRepository } from '../../../domain/interfaces/repositories/IUserRepository';
 
 export class PrismaUserRepository implements IUserRepository {
   constructor(private readonly prisma: PrismaClient) {}
@@ -14,7 +14,7 @@ export class PrismaUserRepository implements IUserRepository {
       data: {
         id: user.getId().getValue(),
         email: user.getEmail().getValue(),
-        password: user.getPassword().getValue(),
+        password: user.getPassword().getValue(), // ✅ HashedPassword
         name: user.getName().getValue(),
         role: user.getRole() as PrismaRole,
         createdAt: user.getCreatedAt(),
@@ -22,6 +22,13 @@ export class PrismaUserRepository implements IUserRepository {
         deletedAt: user.getDeletedAt(),
       },
     });
+
+    // Guardar eventos de dominio
+    const events = user.getEvents();
+    if (events.length > 0) {
+      await this.saveEvents(events);
+      user.clearEvents();
+    }
   }
 
   async findByEmail(email: Email): Promise<User | null> {
@@ -57,13 +64,20 @@ export class PrismaUserRepository implements IUserRepository {
       where: { id: user.getId().getValue() },
       data: {
         email: user.getEmail().getValue(),
-        password: await user.getPassword().hash(),
+        password: user.getPassword().getValue(),
         name: user.getName().getValue(),
         role: user.getRole() as PrismaRole,
         updatedAt: user.getUpdatedAt(),
         deletedAt: user.getDeletedAt(),
       },
     });
+
+    // Guardar eventos de dominio
+    const events = user.getEvents();
+    if (events.length > 0) {
+      await this.saveEvents(events);
+      user.clearEvents();
+    }
   }
 
   async delete(id: UserId): Promise<void> {
@@ -75,7 +89,7 @@ export class PrismaUserRepository implements IUserRepository {
   private toDomain(prismaUser: any): User {
     const id = UserId.fromString(prismaUser.id);
     const email = Email.create(prismaUser.email);
-    const password = Password.createFromHash(prismaUser.password);
+    const password = HashedPassword.fromHash(prismaUser.password); 
     const name = Name.create(prismaUser.name);
 
     return User.reconstitute(
@@ -88,5 +102,30 @@ export class PrismaUserRepository implements IUserRepository {
       prismaUser.updatedAt,
       prismaUser.deletedAt
     );
+  }
+
+  private serializeEvent(event: any): Prisma.JsonValue {
+    if (typeof event.toJSON === 'function') {
+      return event.toJSON() as Prisma.JsonValue;
+    }
+    return {} as Prisma.JsonValue;
+  }
+
+  private async saveEvents(events: any[]): Promise<void> {
+    // Guardar eventos en la tabla domain_events
+    await this.prisma.domainEvent.createMany({
+      data: events.map(event => ({
+        id: crypto.randomUUID(),
+        aggregateId: this.extractAggregateId(event),
+        aggregateType: 'User',
+        eventName: event.eventName,
+        eventData: this.serializeEvent(event) as Prisma.InputJsonValue,
+        occurredOn: event.occurredOn,
+      })),
+    });
+  }
+
+  private extractAggregateId(event: any): string {
+    return event.userId || '';
   }
 }

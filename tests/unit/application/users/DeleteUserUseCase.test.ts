@@ -1,10 +1,10 @@
 import { DeleteUserUseCase } from '../../../../src/application/use-cases/users/DeleteUserUseCase';
-import { IUserRepository } from '../../../../src/domain/interfaces/IUserRepository';
+import { IUserRepository } from '../../../../src/domain/interfaces/repositories/IUserRepository';
 import { User } from '../../../../src/domain/entities/User';
 import { Email } from '../../../../src/domain/value-objects/Email';
-import { Password } from '../../../../src/domain/value-objects/Password';
+import { PlainPassword } from '../../../../src/domain/value-objects/PlainPassword';
 import { Name } from '../../../../src/domain/value-objects/Name';
-import { Role } from '../../../../src/domain/enums/Role';
+import { MockDateProvider } from '../../../mocks/MockDateProvider';
 
 const mockUserRepository: jest.Mocked<IUserRepository> = {
   save: jest.fn(),
@@ -17,19 +17,22 @@ const mockUserRepository: jest.Mocked<IUserRepository> = {
 
 describe('DeleteUserUseCase', () => {
   let useCase: DeleteUserUseCase;
+  let mockDateProvider: MockDateProvider;
   let mockUser: User;
   const deletedBy = 'admin@example.com';
   const reason = 'User deleted by administrator';
 
   beforeEach(async () => {
     jest.clearAllMocks();
-    useCase = new DeleteUserUseCase(mockUserRepository);
+    mockDateProvider = new MockDateProvider();
+    useCase = new DeleteUserUseCase(mockUserRepository, mockDateProvider);
     
-    mockUser = User.create(
+    mockUser = await User.create( 
       Email.create('test@test.com'),
-      await Password.create('Test123!@#'),
+      PlainPassword.create('Test123!@#'),
       Name.create('Test User'),
-      Role.USER
+      'USER',
+      mockDateProvider
     );
   });
 
@@ -39,9 +42,9 @@ describe('DeleteUserUseCase', () => {
       mockUserRepository.findById.mockResolvedValue(mockUser);
       mockUserRepository.update.mockResolvedValue();
 
-      // ✅ CORREGIDO: pasar deletedBy y reason
+      // Act
       await useCase.execute(
-        mockUser.getId().getValue(), // ← Convertir UserId a string
+        mockUser.getId().getValue(),
         deletedBy,
         reason
       );
@@ -67,11 +70,10 @@ describe('DeleteUserUseCase', () => {
 
     it('should throw error if user is already deleted', async () => {
       // Arrange
-      // ✅ CORREGIDO: softDelete requiere deletedBy y reason
-      mockUser.softDelete(deletedBy, 'User was already deleted');
+      await mockUser.softDelete(deletedBy, 'User was already deleted', mockDateProvider); 
       mockUserRepository.findById.mockResolvedValue(mockUser);
 
-      // ✅ CORREGIDO: pasar los 3 argumentos
+      // Act & Assert
       await expect(useCase.execute(
         mockUser.getId().getValue(),
         deletedBy,

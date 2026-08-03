@@ -1,10 +1,11 @@
 import { LogoutUseCase } from '../../../../src/application/use-cases/auth/LogoutUseCase';
-import { IUserRepository } from '../../../../src/domain/interfaces/IUserRepository';
+import { IUserRepository } from '../../../../src/domain/interfaces/repositories/IUserRepository';
 import { User } from '../../../../src/domain/entities/User';
 import { Email } from '../../../../src/domain/value-objects/Email';
-import { Password } from '../../../../src/domain/value-objects/Password';
+import { PlainPassword } from '../../../../src/domain/value-objects/PlainPassword'; 
 import { Role } from '../../../../src/domain/enums/Role';
 import { Name } from '../../../../src/domain/value-objects/Name';
+import { MockDateProvider } from '../../../mocks/MockDateProvider';
 
 const mockUserRepository: jest.Mocked<IUserRepository> = {
   save: jest.fn(),
@@ -17,17 +18,20 @@ const mockUserRepository: jest.Mocked<IUserRepository> = {
 
 describe('LogoutUseCase', () => {
   let useCase: LogoutUseCase;
+  let mockDateProvider: MockDateProvider;
   let mockUser: User;
 
   beforeEach(async () => {
     jest.clearAllMocks();
+    mockDateProvider = new MockDateProvider();
     useCase = new LogoutUseCase(mockUserRepository);
     
-    mockUser = User.create(
+    mockUser = await User.create( 
       Email.create('test@test.com'),
-      await Password.create('Test123!@#'),
+      PlainPassword.create('Test123!@#'), 
       Name.create('Test User'),
-      Role.USER
+      Role.USER,
+      mockDateProvider
     );
   });
 

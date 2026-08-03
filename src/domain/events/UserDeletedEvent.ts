@@ -1,37 +1,38 @@
-import { DomainEvent } from './DomainEvent';
+import { BaseDomainEvent } from './BaseDomainEvent';
 
-export class UserDeletedEvent implements DomainEvent {
+export class UserDeletedEvent extends BaseDomainEvent {
   public readonly eventName = 'user.deleted';
-  public readonly occurredOn: Date;
 
   constructor(
     public readonly userId: string,
     public readonly deletedBy: string,
-    public readonly reason: string
+    public readonly reason: string,
+    public readonly permanent: boolean = false,
+    metadata?: {
+      ipAddress?: string;
+      userAgent?: string;
+      correlationId?: string;
+    }
   ) {
+    super('user.deleted', metadata);
     this.validate();
-    this.occurredOn = new Date();
   }
 
   private validate(): void {
-    if (!this.userId || this.userId.trim() === '') {
-      throw new Error('UserId is required');
-    }
-    if (!this.deletedBy || this.deletedBy.trim() === '') {
-      throw new Error('DeletedBy is required');
-    }
-    if (!this.reason || this.reason.trim() === '') {
-      throw new Error('Reason is required');
-    }
+    this.validateUserId(this.userId);
+    this.validateRequired(this.deletedBy, 'DeletedBy');
+    this.validateString(this.deletedBy, 'DeletedBy');
+    this.validateRequired(this.reason, 'Reason');
+    this.validateString(this.reason, 'Reason');
   }
 
   toJSON(): Record<string, unknown> {
     return {
-      eventName: this.eventName,
+      ...super.toJSON(),
       userId: this.userId,
       deletedBy: this.deletedBy,
       reason: this.reason,
-      occurredOn: this.occurredOn.toISOString(),
+      permanent: this.permanent,
     };
   }
 }

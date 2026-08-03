@@ -7,16 +7,49 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
+  id        String    @id @default(uuid())
+  email     String    @unique
   password  String
   name      String
-  role      Role     @default(USER)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  role      Role      @default(USER)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
   @@map("users")
+}
+
+model LoginAttempt {
+  id            String   @id @default(cuid())
+  email         String
+  ipAddress     String   @map("ip_address")
+  userAgent     String?  @map("user_agent")
+  success       Boolean
+  failureReason String?  @map("failure_reason")
+  userId        String?  @map("user_id")
+  attemptedAt   DateTime @default(now()) @map("attempted_at")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@index([email])
+  @@index([ipAddress])
+  @@index([userId])
+  @@index([attemptedAt])
+  @@map("login_attempts")
+}
+
+model DomainEvent {
+  id            String   @id @default(cuid())
+  aggregateId   String   @map("aggregate_id")
+  aggregateType String   @map("aggregate_type")
+  eventName     String   @map("event_name")
+  eventData     Json     @map("event_data")
+  occurredOn    DateTime @map("occurred_on")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@index([aggregateId])
+  @@index([eventName])
+  @@index([occurredOn])
+  @@map("domain_events")
 }
 
 enum Role {

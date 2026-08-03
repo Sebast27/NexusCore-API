@@ -1,12 +1,12 @@
 import { RegisterUserUseCase } from '../../../../src/application/use-cases/auth/RegisterUserUseCase';
 import { RegisterUserInput } from '../../../../src/application/dtos/RegisterUserDTO';
-import { IUserRepository } from '../../../../src/domain/interfaces/IUserRepository';
+import { IUserRepository } from '../../../../src/domain/interfaces/repositories/IUserRepository';
 import { User } from '../../../../src/domain/entities/User';
 import { Email } from '../../../../src/domain/value-objects/Email';
-import { Password } from '../../../../src/domain/value-objects/Password';
+import { PlainPassword } from '../../../../src/domain/value-objects/PlainPassword'; 
 import { Name } from '../../../../src/domain/value-objects/Name';
-import { Role } from '../../../../src/domain/enums/Role';
 import { UserAlreadyExistsError } from '../../../../src/application/errors/UserAlreadyExistsError';
+import { MockDateProvider } from '../../../mocks/MockDateProvider';
 
 // Mock del repositorio
 const mockUserRepository: jest.Mocked<IUserRepository> = {
@@ -20,10 +20,12 @@ const mockUserRepository: jest.Mocked<IUserRepository> = {
 
 describe('RegisterUserUseCase', () => {
   let useCase: RegisterUserUseCase;
+  let mockDateProvider: MockDateProvider;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    useCase = new RegisterUserUseCase(mockUserRepository);
+    mockDateProvider = new MockDateProvider();
+    useCase = new RegisterUserUseCase(mockUserRepository, mockDateProvider);
   });
 
   const validInput: RegisterUserInput = {
@@ -34,22 +36,22 @@ describe('RegisterUserUseCase', () => {
 
   describe('Success cases', () => {
     it('should register a user successfully', async () => {
-    // Arrange
-    mockUserRepository.findByEmail.mockResolvedValue(null);
-    mockUserRepository.save.mockResolvedValue();
+      // Arrange
+      mockUserRepository.findByEmail.mockResolvedValue(null);
+      mockUserRepository.save.mockResolvedValue();
 
-    // Act
-    const result = await useCase.execute(validInput);
+      // Act
+      const result = await useCase.execute(validInput);
 
-    // Assert
-    expect(result).toMatchObject({
+      // Assert
+      expect(result).toMatchObject({
         email: validInput.email,
         name: validInput.name,
-        role: Role.USER
-    });
-    expect(result.id).toBeDefined();
-    expect(result.createdAt).toBeInstanceOf(Date);
-    expect(mockUserRepository.save).toHaveBeenCalledTimes(1);
+        role: 'USER' 
+      });
+      expect(result.id).toBeDefined();
+      expect(result.createdAt).toBeInstanceOf(Date);
+      expect(mockUserRepository.save).toHaveBeenCalledTimes(1);
     });
 
     it('should hash the password before saving', async () => {
@@ -67,7 +69,6 @@ describe('RegisterUserUseCase', () => {
 
       // Assert
       expect(savedUser).toBeDefined();
-      // ✅ Usamos getValue() en lugar de .value
       expect(savedUser?.getPassword().getValue()).not.toBe(validInput.password);
       expect(savedUser?.getPassword().getValue()).toMatch(/^\$2[aby]\$\d+\$.+$/);
     });
@@ -86,18 +87,19 @@ describe('RegisterUserUseCase', () => {
       await useCase.execute(validInput);
 
       // Assert
-      expect(savedUser?.getRole()).toBe(Role.USER);
+      expect(savedUser?.getRole()).toBe('USER'); 
     });
   });
 
   describe('Error cases', () => {
     it('should throw error if email already exists', async () => {
       // Arrange
-      const existingUser = User.create(
+      const existingUser = await User.create( 
         Email.create(validInput.email),
-        await Password.create(validInput.password),
+        PlainPassword.create(validInput.password), 
         Name.create('Existing User'),
-        Role.USER
+        'USER',
+        mockDateProvider
       );
       mockUserRepository.findByEmail.mockResolvedValue(existingUser);
 

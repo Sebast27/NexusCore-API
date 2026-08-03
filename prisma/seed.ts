@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient, Role } from '@prisma/client';
-import { Password } from '../src/domain/value-objects/Password';
+import { PlainPassword } from '../src/domain/value-objects/PlainPassword';
 
 const databaseUrl = process.env.DATABASE_URL!;
 
@@ -19,9 +19,9 @@ async function main() {
   console.log('🌱 Iniciando seed...');
   console.log('📡 Conectando a:', databaseUrl);
 
-  // Crear usuario admin por defecto usando Password VO
-  const passwordObj = Password.create('Admin123!');
-  const adminPassword = await passwordObj.hash();
+  // ✅ Crear usuario admin
+  const adminPlainPassword = PlainPassword.create('Admin123!');
+  const adminPassword = await adminPlainPassword.hash();
 
   const admin = await prisma.user.upsert({
     where: { email: 'admin@nexuscore.com' },
@@ -29,7 +29,7 @@ async function main() {
     create: {
       id: crypto.randomUUID(),
       email: 'admin@nexuscore.com',
-      password: adminPassword,
+      password: adminPassword.getValue(), // ✅ HashedPassword
       name: 'Administrador',
       role: Role.ADMIN,
       createdAt: new Date(),
@@ -40,9 +40,9 @@ async function main() {
 
   console.log('✅ Usuario admin creado:', admin.email);
 
-  // Crear usuario editor
-  const editorPasswordObj = Password.create('Editor123!');
-  const editorPassword = await editorPasswordObj.hash();
+  // ✅ Crear usuario editor
+  const editorPlainPassword = PlainPassword.create('Editor123!');
+  const editorPassword = await editorPlainPassword.hash();
 
   const editor = await prisma.user.upsert({
     where: { email: 'editor@nexuscore.com' },
@@ -50,7 +50,7 @@ async function main() {
     create: {
       id: crypto.randomUUID(),
       email: 'editor@nexuscore.com',
-      password: editorPassword,
+      password: editorPassword.getValue(),
       name: 'Editor',
       role: Role.EDITOR,
       createdAt: new Date(),
@@ -61,9 +61,9 @@ async function main() {
 
   console.log('✅ Usuario editor creado:', editor.email);
 
-  // Crear usuario viewer
-  const viewerPasswordObj = Password.create('Viewer123!');
-  const viewerPassword = await viewerPasswordObj.hash();
+  // ✅ Crear usuario viewer
+  const viewerPlainPassword = PlainPassword.create('Viewer123!');
+  const viewerPassword = await viewerPlainPassword.hash();
 
   const viewer = await prisma.user.upsert({
     where: { email: 'viewer@nexuscore.com' },
@@ -71,7 +71,7 @@ async function main() {
     create: {
       id: crypto.randomUUID(),
       email: 'viewer@nexuscore.com',
-      password: viewerPassword,
+      password: viewerPassword.getValue(),
       name: 'Visualizador',
       role: Role.VIEWER,
       createdAt: new Date(),

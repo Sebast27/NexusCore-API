@@ -1,25 +1,34 @@
-import { DomainEvent } from './DomainEvent';
+import { BaseDomainEvent } from './BaseDomainEvent';
 
-export class UserPasswordChangedEvent implements DomainEvent {
+export class UserPasswordChangedEvent extends BaseDomainEvent {
   public readonly eventName = 'user.password.changed';
-  public readonly occurredOn: Date;
 
-  constructor(public readonly userId: string) {
+  constructor(
+    public readonly userId: string,
+    public readonly changedBy: string,
+    public readonly changedReason?: 'user_initiated' | 'admin_reset' | 'system_forced' | 'security_breach',
+    metadata?: {
+      ipAddress?: string;
+      userAgent?: string;
+      correlationId?: string;
+    }
+  ) {
+    super('user.password.changed', metadata);
     this.validate();
-    this.occurredOn = new Date();
   }
 
   private validate(): void {
-    if (!this.userId || this.userId.trim() === '') {
-      throw new Error('UserId is required');
-    }
+    this.validateUserId(this.userId);
+    this.validateRequired(this.changedBy, 'ChangedBy');
+    this.validateString(this.changedBy, 'ChangedBy');
   }
 
   toJSON(): Record<string, unknown> {
     return {
-      eventName: this.eventName,
+      ...super.toJSON(),
       userId: this.userId,
-      occurredOn: this.occurredOn.toISOString(),
+      changedBy: this.changedBy,
+      changedReason: this.changedReason || null,
     };
   }
 }

@@ -1,30 +1,33 @@
+// application/use-cases/auth/LoginUserUseCase.ts
 import { LoginUserInput, LoginUserSchema, LoginUserResponseDTO } from '../../dtos/LoginUserDTO';
-import { IUserRepository } from '../../../domain/interfaces/IUserRepository';
+import { IUserRepository } from '../../../domain/interfaces/repositories/IUserRepository';
 import { Email } from '../../../domain/value-objects/Email';
-import { Password } from '../../../domain/value-objects/Password';
+import { PlainPassword } from '../../../domain/value-objects/PlainPassword';
 import { User } from '../../../domain/entities/User';
 import { ZodError } from 'zod';
 import jwt from 'jsonwebtoken';
+import { LoginAttempt } from '../../../domain/entities/LoginAttempt';
+import { IpAddress } from '../../../domain/value-objects/IpAddress';
+import { ILoginAttemptRepository } from '../../../domain/interfaces/repositories/ILoginAttemptRepository';
 
 export class LoginUserUseCase {
-  constructor(private userRepository: IUserRepository) {}
+  constructor(
+    private userRepository: IUserRepository,
+    private loginAttemptRepository: ILoginAttemptRepository,
+  ) {}
 
   async execute(input: LoginUserInput): Promise<LoginUserResponseDTO> {
     try {
-
       console.error('🔐 === LOGIN ATTEMPT ===');
-    console.error('📧 Email:', input.email);
-    console.error('🔑 Password:', input.password);
+      console.error('📧 Email:', input.email);
+      console.error('🔑 Password:', input.password);
 
-      // 1. Validar entrada con Zod
       const validatedInput = LoginUserSchema.parse(input);
       console.error('✅ Input validado');
 
-      // 2. Crear Value Objects
       const email = Email.create(validatedInput.email);
       console.error('✅ Email creado');
 
-      // 3. Buscar usuario por email
       const user = await this.userRepository.findByEmail(email);
       console.error('👤 User encontrado?', !!user);
       if (!user) {
@@ -33,24 +36,43 @@ export class LoginUserUseCase {
       }
 
       console.error('👤 ID usuario:', user.getId());
-    console.error('🔐 Hashed en BD:', user.getPassword().getValue());
-      
+      console.error('🔐 Hashed en BD:', user.getPassword().getValue());
 
-      // 4. Verificar contraseña
-      const isPasswordValid = await Password.compare(validatedInput.password, user.getPassword().getValue());
+      const plainPassword = PlainPassword.create(validatedInput.password);
+      const isPasswordValid = await plainPassword.compare(user.getPassword());
       console.error('✅ ¿Password válida?', isPasswordValid);
       if (!isPasswordValid) {
         console.error('❌ Password inválida');
         throw new Error('Invalid credentials');
       }
 
-      // Generar tokens
+      const ipAddress = validatedInput.ipAddress || '0.0.0.0';
+      const userAgent = validatedInput.userAgent || 'Unknown';
+      
+      const userIp = IpAddress.create(ipAddress);
+      const successAttempt = LoginAttempt.createSuccessful(
+        email,
+        userIp,
+        user.getId(),
+        userAgent,
+        {
+          ipAddress: ipAddress,
+          userAgent: userAgent,
+        }
+      );
+      await this.loginAttemptRepository.save(successAttempt);
+
+      user.loginSuccessful(input.email, {
+        ipAddress: ipAddress,
+        userAgent: userAgent,
+      });
+      await this.userRepository.update(user);
+
       const accessToken = this.generateAccessToken(user);
       const refreshToken = this.generateRefreshToken(user);
       console.error('🔑 Access Token:', accessToken);
       console.error('🔑 Refresh Token:', refreshToken);
 
-      // 6. Retornar respuesta
       return {
         id: user.getId().getValue(),
         email: user.getEmail().getValue(),

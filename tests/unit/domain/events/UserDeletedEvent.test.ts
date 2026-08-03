@@ -69,21 +69,20 @@ describe('UserDeletedEvent', () => {
 
   describe('toJSON', () => {
     it('should return JSON representation of event', () => {
-      // Arrange
       const userId = '123e4567-e89b-42d3-a456-426614174000';
       const deletedBy = 'admin@example.com';
       const reason = 'User requested deletion';
       const event = new UserDeletedEvent(userId, deletedBy, reason);
 
-      // Act
       const json = event.toJSON();
 
-      // Assert
       expect(json).toEqual({
         eventName: 'user.deleted',
         userId: userId,
         deletedBy: deletedBy,
         reason: reason,
+        permanent: false, // ✅ Añadir
+        metadata: null,   // ✅ Añadir
         occurredOn: event.occurredOn.toISOString(),
       });
     });

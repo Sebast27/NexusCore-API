@@ -5,7 +5,9 @@ export const LoginUserSchema = z.object({
     .min(1, 'Email is required')
     .email('Invalid email format'),
   password: z.string()
-    .min(1, 'Password is required')
+    .min(1, 'Password is required'),
+  ipAddress: z.string().optional(),
+  userAgent: z.string().optional(),
 });
 
 export type LoginUserInput = z.infer<typeof LoginUserSchema>;

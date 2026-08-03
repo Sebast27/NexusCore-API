@@ -1,13 +1,14 @@
 import bcrypt from 'bcrypt';
+import { HashedPassword } from '../value-objects/HashedPassword';
 
-export class Password {
+export class PlainPassword {
   private static readonly MIN_LENGTH = 8;
   private static readonly SALT_ROUNDS = 10;
   
   private static readonly VALIDATION_RULES = [
     {
-      test: (value: string) => value.length >= Password.MIN_LENGTH,
-      message: `Password must be at least ${Password.MIN_LENGTH} characters long`,
+      test: (value: string) => value.length >= PlainPassword.MIN_LENGTH,
+      message: `Password must be at least ${PlainPassword.MIN_LENGTH} characters long`,
     },
     {
       test: (value: string) => /[A-Z]/.test(value),
@@ -33,32 +34,25 @@ export class Password {
     this.value = value;
   }
 
-  static create(value: string): Password {
-    Password.validate(value);
-    return new Password(value);
+  static create(value: string): PlainPassword {
+    PlainPassword.validate(value);
+    return new PlainPassword(value);
   }
 
   private static validate(value: string): void {
-    for (const rule of Password.VALIDATION_RULES) {
+    for (const rule of PlainPassword.VALIDATION_RULES) {
       if (!rule.test(value)) {
         throw new Error(rule.message);
       }
     }
   }
 
-  async hash(): Promise<string> {
-    return bcrypt.hash(this.value, Password.SALT_ROUNDS);
+  async hash(): Promise<HashedPassword> {
+    const hashed = await bcrypt.hash(this.value, PlainPassword.SALT_ROUNDS);
+    return HashedPassword.fromHash(hashed);
   }
 
-  static async compare(plainPassword: string, hashedPassword: string): Promise<boolean> {
-    return bcrypt.compare(plainPassword, hashedPassword);
-  }
-
-  getValue(): string {
-    return this.value;
-  }
-
-  static createFromHash(hash: string): Password {
-    return new Password(hash);
+  async compare(hashed: HashedPassword): Promise<boolean> {
+    return bcrypt.compare(this.value, hashed.getValue());
   }
 }

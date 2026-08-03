@@ -30,6 +30,8 @@ describe('AuthController', () => {
   let controller: AuthController;
   let req: Partial<AuthRequest>;
   let res: Partial<Response>;
+  let statusMock: jest.Mock;
+  let jsonMock: jest.Mock;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -39,6 +41,9 @@ describe('AuthController', () => {
       mockRefreshUseCase,
       mockLogoutUseCase
     );
+
+    jsonMock = jest.fn();
+    statusMock = jest.fn().mockReturnValue({ json: jsonMock });
     
     req = {
       body: {},
@@ -46,14 +51,13 @@ describe('AuthController', () => {
     };
     
     res = {
-      status: jest.fn().mockReturnThis(),
-      json: jest.fn().mockReturnThis()
+      status: statusMock,
+      json: jsonMock
     };
   });
 
   describe('register', () => {
     it('should return 201 when registration is successful', async () => {
-      // Arrange
       const mockInput = {
         email: 'test@test.com',
         password: 'Test123!@#',
@@ -71,19 +75,16 @@ describe('AuthController', () => {
       req.body = mockInput;
       mockRegisterUseCase.execute.mockResolvedValue(mockResult);
 
-      // Act
       await controller.register(req as Request, res as Response);
 
-      // Assert
-      expect(res.status).toHaveBeenCalledWith(201);
-      expect(res.json).toHaveBeenCalledWith({
+      expect(statusMock).toHaveBeenCalledWith(201);
+      expect(jsonMock).toHaveBeenCalledWith({
         success: true,
         data: mockResult
       });
     });
 
     it('should return 400 when Zod validation fails', async () => {
-      // Arrange
       const mockInput = { email: 'invalid', password: '123', name: '' };
       req.body = mockInput;
       
@@ -98,19 +99,16 @@ describe('AuthController', () => {
       
       mockRegisterUseCase.execute.mockRejectedValue(zodError);
 
-      // Act
       await controller.register(req as Request, res as Response);
 
-      // Assert
-      expect(res.status).toHaveBeenCalledWith(400);
-      expect(res.json).toHaveBeenCalledWith({
+      expect(statusMock).toHaveBeenCalledWith(400);
+      expect(jsonMock).toHaveBeenCalledWith({
         success: false,
         error: 'Invalid email'
       });
     });
 
     it('should return 409 when user already exists', async () => {
-      // Arrange
       const mockInput = {
         email: 'test@test.com',
         password: 'Test123!@#',
@@ -122,19 +120,16 @@ describe('AuthController', () => {
         new UserAlreadyExistsError('test@test.com')
       );
 
-      // Act
       await controller.register(req as Request, res as Response);
 
-      // Assert
-      expect(res.status).toHaveBeenCalledWith(409);
-      expect(res.json).toHaveBeenCalledWith({
+      expect(statusMock).toHaveBeenCalledWith(409);
+      expect(jsonMock).toHaveBeenCalledWith({
         success: false,
         error: 'El usuario con email test@test.com ya existe'
       });
     });
 
     it('should return 500 on unexpected error', async () => {
-      // Arrange
       const mockInput = {
         email: 'test@test.com',
         password: 'Test123!@#',
@@ -144,12 +139,10 @@ describe('AuthController', () => {
       
       mockRegisterUseCase.execute.mockRejectedValue(new Error('Database error'));
 
-      // Act
       await controller.register(req as Request, res as Response);
 
-      // Assert
-      expect(res.status).toHaveBeenCalledWith(500);
-      expect(res.json).toHaveBeenCalledWith({
+      expect(statusMock).toHaveBeenCalledWith(500);
+      expect(jsonMock).toHaveBeenCalledWith({
         success: false,
         error: 'Internal server error'
       });
@@ -158,7 +151,6 @@ describe('AuthController', () => {
 
   describe('login', () => {
     it('should return 200 when login is successful', async () => {
-      // Arrange
       const mockInput = {
         email: 'test@test.com',
         password: 'Test123!@#'
@@ -175,19 +167,16 @@ describe('AuthController', () => {
       req.body = mockInput;
       mockLoginUseCase.execute.mockResolvedValue(mockResult);
 
-      // Act
       await controller.login(req as Request, res as Response);
 
-      // Assert
-      expect(res.status).toHaveBeenCalledWith(200);
-      expect(res.json).toHaveBeenCalledWith({
+      expect(statusMock).toHaveBeenCalledWith(200);
+      expect(jsonMock).toHaveBeenCalledWith({
         success: true,
         data: mockResult
       });
     });
 
     it('should return 401 on invalid credentials', async () => {
-      // Arrange
       const mockInput = {
         email: 'test@test.com',
         password: 'wrong'
@@ -198,19 +187,16 @@ describe('AuthController', () => {
         new Error('Invalid credentials')
       );
 
-      // Act
       await controller.login(req as Request, res as Response);
 
-      // Assert
-      expect(res.status).toHaveBeenCalledWith(401);
-      expect(res.json).toHaveBeenCalledWith({
+      expect(statusMock).toHaveBeenCalledWith(401);
+      expect(jsonMock).toHaveBeenCalledWith({
         success: false,
         error: 'Invalid credentials'
       });
     });
 
     it('should return 400 on validation error', async () => {
-      // Arrange
       const mockInput = { email: 'invalid', password: '123' };
       req.body = mockInput;
       
@@ -225,22 +211,18 @@ describe('AuthController', () => {
       
       mockLoginUseCase.execute.mockRejectedValue(zodError);
 
-      // Act
       await controller.login(req as Request, res as Response);
 
-      // Assert
-      expect(res.status).toHaveBeenCalledWith(400);
-      expect(res.json).toHaveBeenCalledWith({
+      expect(statusMock).toHaveBeenCalledWith(400);
+      expect(jsonMock).toHaveBeenCalledWith({
         success: false,
         error: 'Invalid email'
       });
     });
   });
 
-  // Agregar pruebas de logout
   describe('logout', () => {
     it('should return 200 when logout is successful', async () => {
-      // Arrange
       const mockUser = {
         id: '123',
         email: 'test@test.com',
@@ -249,34 +231,28 @@ describe('AuthController', () => {
       req.user = mockUser;
       mockLogoutUseCase.execute.mockResolvedValue(undefined);
 
-      // Act
       await controller.logout(req as AuthRequest, res as Response);
 
-      // Assert
-      expect(res.status).toHaveBeenCalledWith(200);
-      expect(res.json).toHaveBeenCalledWith({
+      expect(statusMock).toHaveBeenCalledWith(200);
+      expect(jsonMock).toHaveBeenCalledWith({
         success: true,
         message: 'Logged out successfully'
       });
     });
 
     it('should return 401 if user not authenticated', async () => {
-      // Arrange
       req.user = undefined;
 
-      // Act
       await controller.logout(req as AuthRequest, res as Response);
 
-      // Assert
-      expect(res.status).toHaveBeenCalledWith(401);
-      expect(res.json).toHaveBeenCalledWith({
+      expect(statusMock).toHaveBeenCalledWith(401);
+      expect(jsonMock).toHaveBeenCalledWith({
         success: false,
         error: 'Not authenticated'
       });
     });
 
     it('should return 500 on unexpected error', async () => {
-      // Arrange
       const mockUser = {
         id: '123',
         email: 'test@test.com',
@@ -285,14 +261,79 @@ describe('AuthController', () => {
       req.user = mockUser;
       mockLogoutUseCase.execute.mockRejectedValue(new Error('Database error'));
 
-      // Act
       await controller.logout(req as AuthRequest, res as Response);
 
-      // Assert
-      expect(res.status).toHaveBeenCalledWith(500);
-      expect(res.json).toHaveBeenCalledWith({
+      expect(statusMock).toHaveBeenCalledWith(500);
+      expect(jsonMock).toHaveBeenCalledWith({
         success: false,
         error: 'Internal server error'
+      });
+    });
+  });
+
+  // ✅ Tests de error corregidos - usando statusMock y jsonMock
+  describe('Error handling', () => {
+    it('should handle registration error', async () => {
+      const registerData = {
+        email: 'test@example.com',
+        password: 'Password123!',
+        name: 'Test User',
+      };
+
+      const mockError = new Error('Database error');
+      mockRegisterUseCase.execute.mockRejectedValue(mockError);
+
+      req.body = registerData;
+
+      await controller.register(req as Request, res as Response);
+
+      expect(statusMock).toHaveBeenCalledWith(500);
+      expect(jsonMock).toHaveBeenCalledWith({
+        success: false,
+        error: 'Internal server error',
+      });
+    });
+
+    it('should handle login error', async () => {
+      const loginData = {
+        email: 'test@example.com',
+        password: 'WrongPassword123!',
+      };
+
+      const mockError = new Error('Invalid credentials');
+      mockLoginUseCase.execute.mockRejectedValue(mockError);
+
+      req.body = loginData;
+
+      await controller.login(req as Request, res as Response);
+
+      expect(statusMock).toHaveBeenCalledWith(401);
+      expect(jsonMock).toHaveBeenCalledWith({
+        success: false,
+        error: 'Invalid credentials',
+      });
+    });
+
+    it('should handle Zod validation error on register', async () => {
+      const invalidData = {
+        email: 'invalid-email',
+        password: '123',
+        name: 'T',
+      };
+
+      const zodError = new ZodError([
+        { code: 'invalid_type', expected: 'string', path: ['email'], message: 'Invalid email' }
+      ]);
+      mockRegisterUseCase.execute.mockRejectedValue(zodError);
+
+      req.body = invalidData;
+
+      await controller.register(req as Request, res as Response);
+
+      expect(statusMock).toHaveBeenCalledWith(400);
+      expect(jsonMock).toHaveBeenCalledWith({
+        success: false,
+        error: 'Invalid email',
       });
     });
   });
