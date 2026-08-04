@@ -12,7 +12,9 @@ export interface GetGlobalAuditLogFilters {
 }
 
 export class GetGlobalAuditLogUseCase {
-  constructor(private readonly auditRepository: IAuditRepository) {}
+  constructor(
+    private readonly _auditRepository: IAuditRepository
+  ) {}
 
   async execute(filters: GetGlobalAuditLogFilters): Promise<AuditLogPaginatedResponseDTO> {
     // 1. Validar filtros
@@ -35,14 +37,14 @@ export class GetGlobalAuditLogUseCase {
     let events = [];
 
     if (filters.eventName) {
-      events = await this.auditRepository.findByEventName(filters.eventName);
+      events = await this._auditRepository.findByEventName(filters.eventName);
     } else if (filters.startDate && filters.endDate) {
-      events = await this.auditRepository.findByDateRange(
+      events = await this._auditRepository.findByDateRange(
         filters.startDate,
         filters.endDate
       );
     } else {
-      events = await this.auditRepository.findAll(limit, offset);
+      events = await this._auditRepository.findAll(limit, offset);
     }
 
     // 3. Usar el mapper con paginación

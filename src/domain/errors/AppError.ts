@@ -22,7 +22,7 @@ export abstract class AppError extends Error {
     Error.captureStackTrace(this, this.constructor);
   }
 
-  toJSON() {
+  toJSON(): Record<string, unknown>  {
     return {
       name: this.name,
       code: this.code,

@@ -14,7 +14,7 @@ export class ValidationError extends ApplicationError {
   }
 
   // Para múltiples campos
-  static fromFields(errors: Array<{ field: string; message: string }>) {
+  static fromFields(errors: Array<{ field: string; message: string }>): ValidationError  {
     return new ValidationError(
       'multiple fields',
       errors.map(e => `${e.field}: ${e.message}`).join('; ')
