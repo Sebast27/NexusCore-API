@@ -1,4 +1,6 @@
 import { PlainPassword } from '../value-objects/PlainPassword';
+import { ValidationError } from '../../application/errors/ValidationError';
+import { InvalidHashError } from '../errors/InvalidHashError';
 
 export class HashedPassword {
   private static readonly BCRYPT_REGEX = /^\$2[aby]\$\d+\$.+$/;
@@ -10,13 +12,13 @@ export class HashedPassword {
 
   static fromHash(hash: string): HashedPassword {
     if (!hash || hash.trim() === '') {
-      throw new Error('Hashed password cannot be empty');
+      throw new ValidationError('hashedPassword', 'Hashed password cannot be empty');
     }
 
     const trimmed = hash.trim();
 
     if (!HashedPassword.BCRYPT_REGEX.test(trimmed)) {
-      throw new Error('Invalid bcrypt hash format');
+      throw new InvalidHashError('bcrypt', 'Invalid bcrypt hash format');
     }
 
     return new HashedPassword(trimmed);
@@ -31,6 +33,9 @@ export class HashedPassword {
   }
 
   async verify(plain: PlainPassword): Promise<boolean> {
+    if (!plain) {
+      throw new ValidationError('plainPassword', 'Plain password is required for verification');
+    }
     return plain.compare(this);
   }
 }

@@ -1,51 +1,53 @@
-// application/use-cases/auth/LoginUserUseCase.ts
-import { LoginUserInput, LoginUserSchema, LoginUserResponseDTO } from '../../dtos/LoginUserDTO';
+import { LoginUserRequestDTO, LoginUserSchema, LoginUserResponseDTO } from '../../dtos/LoginUserDTO';
 import { IUserRepository } from '../../../domain/interfaces/repositories/IUserRepository';
 import { Email } from '../../../domain/value-objects/Email';
 import { PlainPassword } from '../../../domain/value-objects/PlainPassword';
-import { User } from '../../../domain/entities/User';
-import { ZodError } from 'zod';
-import jwt from 'jsonwebtoken';
 import { LoginAttempt } from '../../../domain/entities/LoginAttempt';
 import { IpAddress } from '../../../domain/value-objects/IpAddress';
 import { ILoginAttemptRepository } from '../../../domain/interfaces/repositories/ILoginAttemptRepository';
+import { InvalidCredentialsError } from '../../../domain/errors/InvalidCredentialsError';
+import { UserLoginBlockedError } from '../../../domain/errors/UserLoginBlockedError';
+import { ITokenService } from '../../../domain/interfaces/services/ITokenService';
 
 export class LoginUserUseCase {
   constructor(
     private userRepository: IUserRepository,
     private loginAttemptRepository: ILoginAttemptRepository,
+    private readonly tokenService: ITokenService
   ) {}
 
-  async execute(input: LoginUserInput): Promise<LoginUserResponseDTO> {
-    try {
-      console.error('🔐 === LOGIN ATTEMPT ===');
-      console.error('📧 Email:', input.email);
-      console.error('🔑 Password:', input.password);
-
+  async execute(input: LoginUserRequestDTO): Promise<LoginUserResponseDTO> {
+      // 1. Validar entrada con Zod
       const validatedInput = LoginUserSchema.parse(input);
-      console.error('✅ Input validado');
 
+      // 2. Crear Value Objects
       const email = Email.create(validatedInput.email);
-      console.error('✅ Email creado');
+      const plainPassword = PlainPassword.createForComparison(validatedInput.password);
 
+      // 3. Buscar usuario
       const user = await this.userRepository.findByEmail(email);
-      console.error('👤 User encontrado?', !!user);
       if (!user) {
-        console.error('❌ Usuario NO existe');
-        throw new Error('Invalid credentials');
+        await this.recordFailedAttempt(email, validatedInput, 'User not found');
+        throw new InvalidCredentialsError();
       }
 
-      console.error('👤 ID usuario:', user.getId());
-      console.error('🔐 Hashed en BD:', user.getPassword().getValue());
+      // 4. Verificar si el usuario está bloqueado para login
+      if (user.isDeleted()) {
+        throw new UserLoginBlockedError(
+          email.getValue(),
+          'User account is deleted'
+        );
+      }
 
-      const plainPassword = PlainPassword.create(validatedInput.password);
+
+      // 5. Validar password
       const isPasswordValid = await plainPassword.compare(user.getPassword());
-      console.error('✅ ¿Password válida?', isPasswordValid);
       if (!isPasswordValid) {
-        console.error('❌ Password inválida');
-        throw new Error('Invalid credentials');
+        await this.recordFailedAttempt(email, validatedInput, 'Invalid password');
+        throw new InvalidCredentialsError();
       }
 
+      // 6. Registrar intento exitoso
       const ipAddress = validatedInput.ipAddress || '0.0.0.0';
       const userAgent = validatedInput.userAgent || 'Unknown';
       
@@ -54,70 +56,55 @@ export class LoginUserUseCase {
         email,
         userIp,
         user.getId(),
-        userAgent,
         {
-          ipAddress: ipAddress,
           userAgent: userAgent,
+          correlationId: validatedInput.correlationId,
         }
       );
       await this.loginAttemptRepository.save(successAttempt);
 
-      user.loginSuccessful(input.email, {
+      // 7. Registrar evento de login exitoso en el usuario
+      user.loginSuccessful({
         ipAddress: ipAddress,
         userAgent: userAgent,
+        correlationId: validatedInput.correlationId,
       });
       await this.userRepository.update(user);
 
-      const accessToken = this.generateAccessToken(user);
-      const refreshToken = this.generateRefreshToken(user);
-      console.error('🔑 Access Token:', accessToken);
-      console.error('🔑 Refresh Token:', refreshToken);
+      // 8. Generar tokens usando el servicio
+      const tokens = this.tokenService.generateTokens(user);
 
       return {
         id: user.getId().getValue(),
         email: user.getEmail().getValue(),
         name: user.getName().getValue(),
         role: user.getRole(),
-        accessToken,
-        refreshToken
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
+        expiresIn: tokens.expiresIn,
+        tokenType: tokens.tokenType,
       };
-    } catch (error) {
-      if (error instanceof ZodError) {
-        console.error('❌ ERROR LOGIN:', error);
-        throw error;
+  }
+
+  private async recordFailedAttempt(
+    email: Email,
+    input: LoginUserRequestDTO,
+    reason: string
+  ): Promise<void> {
+    const ipAddress = input.ipAddress || '0.0.0.0';
+    const userAgent = input.userAgent || 'Unknown';
+    
+    const userIp = IpAddress.create(ipAddress);
+    const failedAttempt = LoginAttempt.createFailed(
+      email,
+      userIp,
+      reason,
+      undefined,
+      {
+        userAgent: userAgent,
+        correlationId: input.correlationId,
       }
-      throw error;
-    }
-  }
-
-  private generateAccessToken(user: User): string {
-    const payload = {
-      id: user.getId().getValue(),
-      email: user.getEmail().getValue(),
-      role: user.getRole()
-    };
-
-    const secret = process.env.JWT_SECRET || 'default-secret-key';
-    const expiresIn = process.env.JWT_ACCESS_EXPIRATION || '15m';
-
-    return jwt.sign(
-      payload,
-      secret,
-      { expiresIn: expiresIn } as jwt.SignOptions
     );
-  }
-
-  private generateRefreshToken(user: User): string {
-    const payload = {
-      id: user.getId().getValue(),
-      email: user.getEmail().getValue(),
-      role: user.getRole(),
-      type: 'refresh' as const
-    };
-
-    const secret = process.env.JWT_SECRET || 'default-secret-key';
-    const expiresIn = process.env.JWT_REFRESH_EXPIRATION || '7d';
-
-    return jwt.sign(payload, secret, { expiresIn } as jwt.SignOptions);
+    await this.loginAttemptRepository.save(failedAttempt);
   }
 }

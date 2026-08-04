@@ -1,3 +1,5 @@
+import { ValidationError } from '../../application/errors/ValidationError';
+import { InvalidIpAddressError } from '../errors/InvalidIpAddressError';
 
 export class IpAddress {
   private readonly value: string;
@@ -8,7 +10,7 @@ export class IpAddress {
 
   static create(value: string): IpAddress {
     if (!value || value.trim() === '') {
-      throw new Error('IP address cannot be empty');
+      throw new ValidationError('ipAddress', 'IP address cannot be empty');
     }
 
     const trimmed = value.trim();
@@ -28,7 +30,7 @@ export class IpAddress {
       return new IpAddress(trimmed);
     }
 
-    throw new Error('Invalid IP address format');
+    throw new InvalidIpAddressError(trimmed,'Invalid IP address format. Must be valid IPv4 or IPv6');
   }
 
   getValue(): string {
@@ -36,6 +38,9 @@ export class IpAddress {
   }
 
   equals(other: IpAddress): boolean {
-    return this.value === other.value;
+    if (!other) {
+      return false;
+    }
+    return this.value === other.getValue();
   }
 }

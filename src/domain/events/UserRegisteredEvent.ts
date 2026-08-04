@@ -22,7 +22,8 @@ export class UserRegisteredEvent extends BaseDomainEvent {
     this.validateUserId(this.userId);
     this.validateEmail(this.email);
     this.validateName(this.name);
-    this.validateRequired(this.role, 'Role');
+    this.validateRequired(this.role, 'role');
+    this.validateString(this.role, 'role');
   }
 
   toJSON(): Record<string, unknown> {

@@ -1,4 +1,4 @@
-import { prisma } from '../../../src/config/prisma';
+import { prisma } from '../../../src/infrastructure/adapters/database/prisma';
 
 describe('Prisma Config', () => {
   it('should have prisma instance', () => {

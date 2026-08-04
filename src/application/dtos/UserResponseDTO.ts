@@ -6,8 +6,11 @@ export interface UserResponseDTO {
   email: string;
   name: string;
   role: Role;
+  emailVerified: boolean;
+  isDeleted: boolean;
   createdAt: Date;
   updatedAt: Date;
+  deletedAt: Date | null;
 }
 
 export class UserResponseMapper {
@@ -17,8 +20,16 @@ export class UserResponseMapper {
       email: user.getEmail().getValue(),
       name: user.getName().getValue(),
       role: user.getRole(),
+      emailVerified: user.isEmailVerified(),
+      isDeleted: !!user.getDeletedAt(),
       createdAt: user.getCreatedAt(),
-      updatedAt: user.getUpdatedAt()
+      updatedAt: user.getUpdatedAt(),
+      deletedAt: user.getDeletedAt()
     };
+  }
+
+  // Método para múltiples usuarios
+  static toDTOList(users: User[]): UserResponseDTO[] {
+    return users.map(user => UserResponseMapper.toDTO(user));
   }
 }

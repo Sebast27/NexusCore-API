@@ -1,9 +1,15 @@
 import bcrypt from 'bcrypt';
 import { HashedPassword } from '../value-objects/HashedPassword';
+import { ValidationError } from '../../application/errors/ValidationError';
+import { InvalidPasswordError } from '../errors/InvalidPasswordError';
+import { HashError } from '../errors/HashError';
 
 export class PlainPassword {
   private static readonly MIN_LENGTH = 8;
-  private static readonly SALT_ROUNDS = 10;
+  
+  private static get SALT_ROUNDS(): number {
+    return parseInt(process.env.BCRYPT_SALT_ROUNDS || '10', 10);
+  }
   
   private static readonly VALIDATION_RULES = [
     {
@@ -39,20 +45,50 @@ export class PlainPassword {
     return new PlainPassword(value);
   }
 
+  
+  // Crea una contraseña para LOGIN - Sin validación, solo guarda el valor
+  static createForComparison(value: string): PlainPassword {
+    return new PlainPassword(value);
+  }
+
   private static validate(value: string): void {
     for (const rule of PlainPassword.VALIDATION_RULES) {
       if (!rule.test(value)) {
-        throw new Error(rule.message);
+        throw new InvalidPasswordError(rule.message);
       }
     }
   }
 
   async hash(): Promise<HashedPassword> {
-    const hashed = await bcrypt.hash(this.value, PlainPassword.SALT_ROUNDS);
-    return HashedPassword.fromHash(hashed);
+    try {
+      const hashed = await bcrypt.hash(this.value, PlainPassword.SALT_ROUNDS);
+      return HashedPassword.fromHash(hashed);
+    } catch (error) {
+      throw new HashError(
+        'bcrypt',
+        'Failed to hash password',
+        error instanceof Error ? error : undefined
+      );
+    }
   }
 
   async compare(hashed: HashedPassword): Promise<boolean> {
-    return bcrypt.compare(this.value, hashed.getValue());
+    if (!hashed) {
+      throw new ValidationError('hashedPassword', 'Hashed password is required for comparison');
+    }
+
+    try {
+      return bcrypt.compare(this.value, hashed.getValue());
+    } catch (error) {
+      throw new HashError(
+        'bcrypt',
+        'Failed to compare passwords',
+        error instanceof Error ? error : undefined
+      );
+    }
+  }
+
+  getValue(): string {
+    return this.value;
   }
 }

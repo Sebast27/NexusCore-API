@@ -2,7 +2,7 @@ import request from 'supertest';
 import express, { Express } from 'express';
 import authRoutes from '../../src/infrastructure/adapters/http/routes/authRoutes';
 import userRoutes from '../../src/infrastructure/adapters/http/routes/userRoutes';
-import { prisma } from '../../src/config/prisma';
+import { prisma } from '../../src/infrastructure/adapters/database/prisma';
 
 describe('Auth E2E Tests', () => {
   let app: Express;
@@ -40,11 +40,6 @@ describe('Auth E2E Tests', () => {
     .expect(201);
 
   // Assert
-
-  // ✅ Imprimir SIEMPRE
-  console.log('📦 Status:', response.status);
-  console.log('📦 Body:', JSON.stringify(response.body, null, 2));
-
   expect(response.status).toBe(201);
   expect(response.body.success).toBe(true);
   expect(response.body.data.email).toBe(userData.email);

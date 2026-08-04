@@ -5,21 +5,17 @@ import { Email } from '../../../domain/value-objects/Email';
 import { PlainPassword } from '../../../domain/value-objects/PlainPassword';
 import { Name } from '../../../domain/value-objects/Name';
 import { User } from '../../../domain/entities/User';
-import { UserAlreadyExistsError } from '../../errors/UserAlreadyExistsError';
-import { ZodError } from 'zod';
 import { IDateProvider } from '../../../domain/interfaces/IDateProvider';
+import { Role } from '../../../domain/enums/Role';
+import { EmailAlreadyExistsError } from '../../../domain/errors';
 
 export class RegisterUserUseCase {
   constructor(private userRepository: IUserRepository, private dateProvider: IDateProvider) {}
 
   async execute(input: RegisterUserInput): Promise<UserResponseDTO> {
-    try {
+
       // 1. Validar entrada con Zod
       const validatedInput = RegisterUserSchema.parse(input);
-      console.log('📝 Registrando usuario:', validatedInput.email);
-
-      console.log('🔐 === PASSWORD HASHING ===');
-      console.log('📝 Plain password:', validatedInput.password);
 
       // 2. Crear Value Objects
       const email = Email.create(validatedInput.email);
@@ -28,38 +24,25 @@ export class RegisterUserUseCase {
       // 3. Verificar si el email ya existe
       const existingUser = await this.userRepository.findByEmail(email);
       if (existingUser) {
-        throw new UserAlreadyExistsError(validatedInput.email);
+        throw new EmailAlreadyExistsError(validatedInput.email);
       }
 
       const name = Name.create(validatedInput.name);
-
+      const role = validatedInput.role || Role.USER;
+      
       // 4. Crear entidad User
       const user = await User.create(
         email,
         plainPassword,
         name,
-        'USER',
+        role,
         this.dateProvider
       );
 
-      console.log('💾 Guardando usuario en BD...');
-
       // 5. Guardar en repositorio
       await this.userRepository.save(user);
-      console.log('✅ Usuario guardado con ID:', user.getId().getValue());
 
       // 6. Retornar DTO
-      console.log('📤 Convirtiendo a DTO...');
-      const dto = UserResponseMapper.toDTO(user);
-      console.log('✅ DTO creado:', dto);
-
-      return dto;
-    } catch (error) {
-      console.error('❌ Error en registro:', error);
-      if (error instanceof ZodError) {
-        throw error;
-      }
-      throw error;
-    }
+      return UserResponseMapper.toDTO(user);
   }
 }

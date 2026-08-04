@@ -1,63 +1,48 @@
 import { IUserRepository } from '../../../domain/interfaces/repositories/IUserRepository';
-import { User } from '../../../domain/entities/User';
 import { UserId } from '../../../domain/value-objects/UserId';
-import jwt from 'jsonwebtoken';
-
-export interface RefreshTokenInput {
-  refreshToken: string;
-}
-
-export interface RefreshTokenResponse {
-  accessToken: string;
-}
+import { UserNotFoundError } from '../../../domain/errors/UserNotFoundError';
+import { ValidationError } from '../../errors/ValidationError';
+import { ITokenService } from '../../../domain/interfaces/services/ITokenService';
+import { UserLoginBlockedError } from '../../../domain/errors/UserLoginBlockedError';
+import { RefreshTokenRequestDTO, RefreshTokenResponseDTO } from '../../../application/dtos/RefreshTokenDTO';
 
 export class RefreshTokenUseCase {
-  constructor(private userRepository: IUserRepository) {}
+  constructor(
+    private userRepository: IUserRepository,
+    private readonly tokenService: ITokenService
+  ) {}
 
-  async execute(input: RefreshTokenInput): Promise<RefreshTokenResponse> {
-    try {
-      const secret = process.env.JWT_SECRET || 'default-secret-key';
-      const decoded = jwt.verify(input.refreshToken, secret) as {
-        id: string;
-        email: string;
-        role: string;
-        type: 'refresh';
-      };
-
-      if (decoded.type !== 'refresh') {
-        throw new Error('Invalid token type');
-      }
-
-      const id = UserId.fromString(decoded.id);
-      const user = await this.userRepository.findById(id);
-      if (!user) {
-        throw new Error('User not found');
-      }
-
-      const accessToken = this.generateAccessToken(user);
-
-      return { accessToken };
-    } catch (error) {
-      if (error instanceof jwt.JsonWebTokenError) {
-        throw new Error('Invalid refresh token');
-      }
-      if (error instanceof jwt.TokenExpiredError) {
-        throw new Error('Refresh token expired');
-      }
-      throw error;
+  async execute(input: RefreshTokenRequestDTO): Promise<RefreshTokenResponseDTO> {
+    // 1. Validar entrada
+    if (!input.refreshToken || input.refreshToken.trim() === '') {
+      throw new ValidationError('refreshToken', 'Refresh token is required');
     }
-  }
 
-  private generateAccessToken(user: User): string {
-    const payload = {
-      id: user.getId(),
-      email: user.getEmail().getValue(),
-      role: user.getRole()
+    // 2. Verificar token (la lógica JWT está en el servicio)
+    const payload = this.tokenService.verifyRefreshToken(input.refreshToken);
+
+     // 3. Buscar usuario
+    const userId = UserId.fromString(payload.id);
+    const user = await this.userRepository.findById(userId);
+    if (!user) {
+      throw new UserNotFoundError(payload.id);
+    }
+
+    // 4. Verificar que el usuario esté activo
+    if (user.isDeleted()) {
+      throw new UserLoginBlockedError(user.getEmail().getValue(),'User account is deleted');
+    }
+
+    // 5. Generar nuevo access token (el servicio maneja la generación)
+    const accessToken = this.tokenService.generateAccessToken(user);
+
+    // ✅ Obtener expiresIn del servicio
+    const expiresIn = this.tokenService.getExpiresInSeconds?.() || 900;
+
+    return {
+      accessToken,
+      expiresIn,
+      tokenType: 'Bearer',
     };
-
-    const secret = process.env.JWT_SECRET || 'default-secret-key';
-    const expiresIn = process.env.JWT_ACCESS_EXPIRATION || '15m';
-
-    return jwt.sign(payload, secret, { expiresIn } as jwt.SignOptions);
   }
 }

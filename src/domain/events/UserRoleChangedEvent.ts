@@ -1,4 +1,5 @@
 import { BaseDomainEvent } from './BaseDomainEvent';
+import { ValidationError } from '../../application/errors/ValidationError';
 
 export class UserRoleChangedEvent extends BaseDomainEvent {
   public readonly eventName = 'user.role.changed';
@@ -21,9 +22,16 @@ export class UserRoleChangedEvent extends BaseDomainEvent {
 
   private validate(): void {
     this.validateUserId(this.userId);
-    this.validateRequired(this.oldRole, 'OldRole');
-    this.validateRequired(this.newRole, 'NewRole');
-    this.validateRequired(this.changedBy, 'ChangedBy');
+    this.validateRequired(this.oldRole, 'oldRole');
+    this.validateString(this.oldRole, 'oldRole');
+    this.validateRequired(this.newRole, 'newRole');
+    this.validateString(this.newRole, 'newRole');
+    this.validateRequired(this.changedBy, 'changedBy');
+    this.validateString(this.changedBy, 'changedBy');
+    
+    if (this.oldRole === this.newRole) {
+      throw new ValidationError('role', 'New role must be different from old role');
+    }
   }
 
   toJSON(): Record<string, unknown> {

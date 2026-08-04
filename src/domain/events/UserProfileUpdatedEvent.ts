@@ -22,9 +22,17 @@ export class UserProfileUpdatedEvent extends BaseDomainEvent {
 
   private validate(): void {
     this.validateUserId(this.userId);
-    this.validateRequired(this.oldName, 'OldName');
-    this.validateRequired(this.newName, 'NewName');
-    this.validateRequired(this.updatedBy, 'UpdatedBy');
+    this.validateName(this.oldName);
+    this.validateName(this.newName);
+    this.validateRequired(this.updatedBy, 'updatedBy');
+    this.validateString(this.updatedBy, 'updatedBy');
+
+    if (this.oldEmail) {
+      this.validateEmail(this.oldEmail);
+    }
+    if (this.newEmail) {
+      this.validateEmail(this.newEmail);
+    }
   }
 
   toJSON(): Record<string, unknown> {

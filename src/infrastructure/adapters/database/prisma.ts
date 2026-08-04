@@ -6,7 +6,7 @@ import { PrismaClient } from '@prisma/client';
 const databaseUrl = process.env.DATABASE_URL;
 
 if (!databaseUrl) {
-  throw new Error('DATABASE_URL no está definida en el archivo .env');
+  throw new Error('DATABASE_URL is not defined in .env file');
 }
 
 const adapter = new PrismaPg({
@@ -16,3 +16,5 @@ const adapter = new PrismaPg({
 export const prisma = new PrismaClient({
   adapter,
 });
+
+export default prisma;

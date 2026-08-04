@@ -1,4 +1,5 @@
 import { randomUUID } from 'crypto';
+import { ValidationError } from '../../application/errors/ValidationError';
 
 export class LoginAttemptId {
   private readonly value: string;
@@ -13,7 +14,7 @@ export class LoginAttemptId {
 
   static fromString(value: string): LoginAttemptId {
     if (!value || value.trim() === '') {
-      throw new Error('LoginAttemptId cannot be empty');
+      throw new ValidationError('loginAttemptId', 'LoginAttemptId cannot be empty');
     }
     return new LoginAttemptId(value);
   }
@@ -23,7 +24,10 @@ export class LoginAttemptId {
   }
 
   equals(other: LoginAttemptId): boolean {
-    return this.value === other.value;
+    if (!other) {
+      return false;
+    }
+    return this.value === other.getValue();
   }
 
   toString(): string {

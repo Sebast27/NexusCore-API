@@ -7,53 +7,66 @@ import { Email } from '../../../domain/value-objects/Email';
 import { IpAddress } from '../../../domain/value-objects/IpAddress';
 import { UserId } from '../../../domain/value-objects/UserId';
 import { LoginAttemptId } from '../../../domain/value-objects/LoginAttemptId';
+import { RepositoryError } from '../../../infrastructure/errors/RepositoryError';
 
 export class PrismaLoginAttemptRepository implements ILoginAttemptRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
   async save(attempt: LoginAttempt): Promise<void> {
-    await this.prisma.loginAttempt.create({
-      data: {
-        id: attempt.getId().getValue(),
-        email: attempt.getEmail().getValue(),
-        ipAddress: attempt.getIpAddress().getValue(),
-        userAgent: attempt.getUserAgent(),
-        success: attempt.isSuccess(),
-        failureReason: attempt.getFailureReason(),
-        userId: attempt.getUserId()?.getValue(),
-        attemptedAt: attempt.getAttemptedAt(),
-      },
-    });
+    try {
+      await this.prisma.$transaction(async (tx) => {
+        // 1. Guardar intento de login
+        await tx.loginAttempt.create({
+          data: {
+            id: attempt.getId().getValue(),
+            email: attempt.getEmail().getValue(),
+            ipAddress: attempt.getIpAddress().getValue(),
+            userAgent: attempt.getUserAgent(),
+            success: attempt.isSuccess(),
+            failureReason: attempt.getFailureReason(),
+            userId: attempt.getUserId()?.getValue(),
+            attemptedAt: attempt.getAttemptedAt(),
+          },
+        });
 
-    // También guardar eventos de dominio
-    const events = attempt.getEvents();
-    if (events.length > 0) {
-      await this.saveEvents(events);
-      attempt.clearEvents();
+        // 2. Guardar eventos en la misma transacción
+        const events = attempt.getEvents();
+        if (events.length > 0) {
+          await this.saveEventsInTransaction(tx, events);
+          attempt.clearEvents();
+        }
+      });
+    } catch (error) {
+      throw RepositoryError.saveFailed('LoginAttemptRepository', error);
     }
   }
 
   async saveMany(attempts: LoginAttempt[]): Promise<void> {
     if (attempts.length === 0) return;
 
-    await this.prisma.loginAttempt.createMany({
-      data: attempts.map(attempt => ({
-        id: attempt.getId().getValue(),
-        email: attempt.getEmail().getValue(),
-        ipAddress: attempt.getIpAddress().getValue(),
-        userAgent: attempt.getUserAgent(),
-        success: attempt.isSuccess(),
-        failureReason: attempt.getFailureReason(),
-        userId: attempt.getUserId()?.getValue(),
-        attemptedAt: attempt.getAttemptedAt(),
-      })),
-    });
+    try {
+      await this.prisma.$transaction(async (tx) => {
+        await tx.loginAttempt.createMany({
+          data: attempts.map(attempt => ({
+            id: attempt.getId().getValue(),
+            email: attempt.getEmail().getValue(),
+            ipAddress: attempt.getIpAddress().getValue(),
+            userAgent: attempt.getUserAgent(),
+            success: attempt.isSuccess(),
+            failureReason: attempt.getFailureReason(),
+            userId: attempt.getUserId()?.getValue(),
+            attemptedAt: attempt.getAttemptedAt(),
+          })),
+        });
 
-    // Guardar eventos de todos los intentos
-    const allEvents = attempts.flatMap(attempt => attempt.getEvents());
-    if (allEvents.length > 0) {
-      await this.saveEvents(allEvents);
-      attempts.forEach(attempt => attempt.clearEvents());
+        const allEvents = attempts.flatMap(attempt => attempt.getEvents());
+        if (allEvents.length > 0) {
+          await this.saveEventsInTransaction(tx, allEvents);
+          attempts.forEach(attempt => attempt.clearEvents());
+        }
+      });
+    } catch (error) {
+      throw RepositoryError.saveFailed('LoginAttemptRepository', error);
     }
   }
 
@@ -111,8 +124,11 @@ export class PrismaLoginAttemptRepository implements ILoginAttemptRepository {
     });
   }
 
-  private async saveEvents(events: DomainEvent[]): Promise<void> {
-    await this.prisma.domainEvent.createMany({
+  private async saveEventsInTransaction(
+    tx: Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>,
+    events: DomainEvent[]
+  ): Promise<void> {
+    await tx.domainEvent.createMany({
       data: events.map(event => ({
         id: randomUUID(),
         aggregateId: this.extractAggregateId(event),

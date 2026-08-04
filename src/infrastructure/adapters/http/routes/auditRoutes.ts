@@ -1,39 +1,122 @@
 import { Router } from 'express';
-import { PrismaClient } from '@prisma/client';
-import { PrismaUserRepository } from '../../database/PrismaUserRepository';
-import { PrismaLoginAttemptRepository } from '../../database/PrismaLoginAttemptRepository';
-import { AuthController } from '../controllers/AuthController';
-import { RegisterUserUseCase } from '../../../../application/use-cases/auth/RegisterUserUseCase';
-import { LoginUserUseCase } from '../../../../application/use-cases/auth/LoginUserUseCase';
-import { LogoutUseCase } from '../../../../application/use-cases/auth/LogoutUseCase';
-import { RefreshTokenUseCase } from '../../../../application/use-cases/auth/RefreshTokenUseCase';
+import { Container } from '../../../di/Container';
 import { authMiddleware } from '../middlewares/authMiddleware';
-import { RealDateProvider } from '../../date/RealDateProvider';
+import { roleMiddleware } from '../middlewares/roleMiddleware';
 
 const router = Router();
 
-// Crear instancias de dependencias
-const prisma = new PrismaClient();
-const userRepository = new PrismaUserRepository(prisma);
-const loginAttemptRepository = new PrismaLoginAttemptRepository(prisma);
-const dateProvider = new RealDateProvider();
+// Obtener todo del container
+const container = Container.getInstance();
+const auditController = container.getAuditController();
 
-// Pasar todas las dependencias
-const registerUserUseCase = new RegisterUserUseCase(userRepository, dateProvider);
-const loginUserUseCase = new LoginUserUseCase(userRepository, loginAttemptRepository);
-const logoutUseCase = new LogoutUseCase(userRepository);
-const refreshTokenUseCase = new RefreshTokenUseCase(userRepository);
-
-const authController = new AuthController(
-  registerUserUseCase,
-  loginUserUseCase,
-  refreshTokenUseCase,
-  logoutUseCase
+router.get(
+  '/user/:userId',
+  authMiddleware,
+  (req, res) => auditController.getUserAuditLogs(req, res)
 );
 
-router.post('/register', (req, res) => authController.register(req, res));
-router.post('/login', (req, res) => authController.login(req, res));
-router.post('/refresh', (req, res) => authController.refresh(req, res));
-router.post('/logout', authMiddleware, (req, res) => authController.logout(req, res));
+router.get(
+  '/global',
+  authMiddleware,
+  roleMiddleware(['ADMIN']),
+  (req, res) => auditController.getGlobalAuditLogs(req, res)
+);
 
 export default router;
+
+/**
+ * @swagger
+ * /api/audit/user/{userId}:
+ *   get:
+ *     summary: Obtener logs de auditoría de un usuario específico
+ *     tags: [Audit]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID del usuario
+ *     responses:
+ *       200:
+ *         description: Lista de logs de auditoría
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: array
+ *                       items:
+ *                         $ref: '#/components/schemas/AuditLogResponse'
+ *       401:
+ *         description: No autenticado
+ *       403:
+ *         description: No autorizado
+ *       404:
+ *         description: Usuario no encontrado
+ *       500:
+ *         description: Error interno del servidor
+ */
+
+/**
+ * @swagger
+ * /api/audit/global:
+ *   get:
+ *     summary: Obtener logs de auditoría globales (solo ADMIN)
+ *     tags: [Audit]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: eventName
+ *         schema:
+ *           type: string
+ *         description: Filtrar por nombre de evento
+ *       - in: query
+ *         name: startDate
+ *         schema:
+ *           type: string
+ *           format: date-time
+ *         description: Fecha de inicio (ISO)
+ *       - in: query
+ *         name: endDate
+ *         schema:
+ *           type: string
+ *           format: date-time
+ *         description: Fecha de fin (ISO)
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *         description: Límite de resultados
+ *       - in: query
+ *         name: offset
+ *         schema:
+ *           type: integer
+ *           default: 0
+ *         description: Offset para paginación
+ *     responses:
+ *       200:
+ *         description: Lista de logs de auditoría
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       $ref: '#/components/schemas/AuditLogPaginatedResponse'
+ *       401:
+ *         description: No autenticado
+ *       403:
+ *         description: No autorizado (requiere ADMIN)
+ *       500:
+ *         description: Error interno del servidor
+ */

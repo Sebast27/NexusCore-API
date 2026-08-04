@@ -1,11 +1,8 @@
 import { Request, Response } from 'express';
 import { GetUserAuditLogUseCase } from '../../../../application/use-cases/audit/GetUserAuditLogUseCase';
 import { GetGlobalAuditLogUseCase } from '../../../../application/use-cases/audit/GetGlobalAuditLogUseCase';
-import { 
-  GetGlobalAuditLogsRequestDTO,
-  AuthenticatedRequestDTO 
-} from '../../../../application/dtos/AuditRequestDTO';
-import { ErrorResponseDTO } from '../../../../application/dtos/AuditResponseDTO';
+import { AuthenticatedRequestDTO, ErrorResponseFactory } from '../../../../application/dtos/CommonDTO';
+import { GetGlobalAuditLogsRequestDTO } from '../../../../application/dtos/AuditRequestDTO';
 
 export class AuditController {
   constructor(
@@ -30,43 +27,49 @@ export class AuditController {
     // 1. Obtener y validar DTO de request
     const authUser = this.getAuthenticatedUser(req);
     if (!authUser) {
-      res.status(401).json({ success: false, error: 'Unauthorized' } as ErrorResponseDTO);
+      res.status(401).json(ErrorResponseFactory.create('UNAUTHORIZED', 'Unauthorized'));
       return;
     }
 
     const { userId } = req.params as { userId: string };
     
     if (!userId || typeof userId !== 'string') {
-      res.status(400).json({ success: false, error: 'Invalid userId' } as ErrorResponseDTO);
+      res.status(400).json(ErrorResponseFactory.create('INVALID_USER_ID', 'Invalid userId'));
       return;
     }
 
     // 2. Verificar permisos
     if (authUser.userId !== userId && authUser.role !== 'ADMIN') {
-      res.status(403).json({ success: false, error: 'Forbidden' } as ErrorResponseDTO);
+      res.status(403).json(ErrorResponseFactory.create('FORBIDDEN', 'Forbidden'));
       return;
     }
 
     // 3. Ejecutar use case
-    const logs = await this.getUserAuditLogUseCase.execute(userId);
-    
-    // 4. Retornar DTO de response
-    res.json({
-      success: true,
-      data: logs,
-    });
+    try {
+      const logs = await this.getUserAuditLogUseCase.execute(userId);
+      res.json({
+        success: true,
+        data: logs,
+      });
+    } catch (error) {
+      if (error instanceof Error && error.message === 'User not found') {
+        res.status(404).json(ErrorResponseFactory.create('USER_NOT_FOUND', 'User not found'));
+        return;
+      }
+      res.status(500).json(ErrorResponseFactory.create('INTERNAL_ERROR', 'Internal server error'));
+    }
   }
 
   async getGlobalAuditLogs(req: Request, res: Response): Promise<void> {
     // 1. Validar autenticación
     const authUser = this.getAuthenticatedUser(req);
     if (!authUser) {
-      res.status(401).json({ success: false, error: 'Unauthorized' } as ErrorResponseDTO);
+      res.status(401).json(ErrorResponseFactory.create('UNAUTHORIZED', 'Unauthorized'));
       return;
     }
 
     if (authUser.role !== 'ADMIN') {
-      res.status(403).json({ success: false, error: 'Forbidden' } as ErrorResponseDTO);
+      res.status(403).json(ErrorResponseFactory.create('FORBIDDEN', 'Forbidden'));
       return;
     }
 
@@ -80,18 +83,21 @@ export class AuditController {
     };
 
     // 3. Ejecutar use case
-    const logs = await this.getGlobalAuditLogUseCase.execute({
-      eventName: query.eventName,
-      startDate: query.startDate ? new Date(query.startDate) : undefined,
-      endDate: query.endDate ? new Date(query.endDate) : undefined,
-      limit: query.limit,
-      offset: query.offset,
-    });
+    try {
+      const logs = await this.getGlobalAuditLogUseCase.execute({
+        eventName: query.eventName,
+        startDate: query.startDate ? new Date(query.startDate) : undefined,
+        endDate: query.endDate ? new Date(query.endDate) : undefined,
+        limit: query.limit,
+        offset: query.offset,
+      });
 
-    // 4. Retornar DTO de response
-    res.json({
-      success: true,
-      data: logs,
-    });
+      res.json({
+        success: true,
+        data: logs,
+      });
+    } catch (error) {
+      res.status(500).json(ErrorResponseFactory.create('INTERNAL_ERROR', 'Internal server error'));
+    }
   }
 }

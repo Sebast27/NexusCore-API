@@ -1,3 +1,5 @@
+import { ValidationError } from '../../application/errors/ValidationError';
+import { InvalidNameError } from '../errors/InvalidNameError';
 
 export class Name {
   private readonly value: string;
@@ -11,29 +13,36 @@ export class Name {
 
   static create(value: string): Name {
     if (!value || value.trim() === '') {
-      throw new Error('Name cannot be empty');
+      throw new ValidationError('name', 'Name cannot be empty');
     }
 
     const trimmed = value.trim();
 
     if (trimmed.length < Name.MIN_LENGTH) {
-      throw new Error(`Name must be at least ${Name.MIN_LENGTH} characters`);
+      throw new InvalidNameError(trimmed, 'Name must be at least ${Name.MIN_LENGTH} characters');
     }
 
     if (trimmed.length > Name.MAX_LENGTH) {
-      throw new Error(`Name cannot exceed ${Name.MAX_LENGTH} characters`);
+      throw new InvalidNameError(trimmed, 'Name cannot exceed ${Name.MAX_LENGTH} characters');
     }
 
     if (!Name.NAME_REGEX.test(trimmed)) {
-      throw new Error('Name contains invalid characters. Only letters, spaces, hyphens, apostrophes and periods allowed');
+      throw new InvalidNameError(trimmed, 'Name contains invalid characters. Only letters, spaces, hyphens, apostrophes and periods allowed');
     }
 
     if (!/[a-zA-ZáéíóúÁÉÍÓÚñÑ]/.test(trimmed)) {
-      throw new Error('Name must contain at least one letter');
+      throw new InvalidNameError(trimmed, 'Name must contain at least one letter');
+    }
+
+    if (trimmed.includes('  ')) {
+      throw new InvalidNameError(trimmed,'Name cannot contain consecutive spaces');
+    }
+
+    if (/['-]{2,}/.test(trimmed)) {
+      throw new InvalidNameError(trimmed,'Name cannot contain consecutive special characters');
     }
 
     const formatted = Name.formatName(trimmed);
-
     return new Name(formatted);
   }
 
@@ -74,7 +83,8 @@ export class Name {
   }
 
   equals(other: Name): boolean {
-    return this.value === other.value;
+    if (!other) { return false;}
+    return this.value === other.getValue();
   }
 
   getInitials(): string {

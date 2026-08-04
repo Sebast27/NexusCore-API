@@ -1,31 +1,27 @@
 import { IAuditRepository } from '../../../domain/interfaces/repositories/IAuditRepository';
-
-interface AuditLogResponse {
-  eventName: string;
-  occurredOn: Date;
-  data: Record<string, unknown>;
-}
+import { AuditLogResponseDTO } from '../../dtos/AuditResponseDTO';
+import { ValidationError } from '../../errors/ValidationError';
+import { UserId } from '../../../domain/value-objects/UserId';
+import { AuditLogMapper } from '../../../application/dtos/AuditLogMapper';
 
 export class GetUserAuditLogUseCase {
-  constructor(private readonly auditRepository: IAuditRepository) {}
+  constructor(
+    private readonly auditRepository: IAuditRepository
+  ) {}
 
-  async execute(userId: string): Promise<AuditLogResponse[]> {
-    const events = await this.auditRepository.findByAggregateId(userId);
-    
-    return events.map(event => ({
-      eventName: event.eventName,
-      occurredOn: event.occurredOn,
-      data: this.extractEventData(event),
-    }));
-  }
-
-  private extractEventData(event: any): Record<string, unknown> {
-    const data: Record<string, unknown> = {};
-    for (const [key, value] of Object.entries(event)) {
-      if (typeof value !== 'function' && key !== 'eventName' && key !== 'occurredOn') {
-        data[key] = value;
-      }
+  async execute(userId: string): Promise<AuditLogResponseDTO[]> {
+    // 1. Validar entrada
+    if (!userId || userId.trim() === '') {
+      throw new ValidationError('userId', 'User ID is required');
     }
-    return data;
+
+    // 2. Validar formato de userId
+    const userIdVO = UserId.fromString(userId);
+
+    // 3. Obtener eventos
+    const events = await this.auditRepository.findByAggregateId(userIdVO.getValue());
+
+    // 4. Mapear a DTOs
+    return events.map(event => AuditLogMapper.toResponseDTO(event));
   }
 }

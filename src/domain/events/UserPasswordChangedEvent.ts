@@ -1,4 +1,5 @@
 import { BaseDomainEvent } from './BaseDomainEvent';
+import { ValidationError } from '../../application/errors/ValidationError';
 
 export class UserPasswordChangedEvent extends BaseDomainEvent {
   public readonly eventName = 'user.password.changed';
@@ -21,6 +22,15 @@ export class UserPasswordChangedEvent extends BaseDomainEvent {
     this.validateUserId(this.userId);
     this.validateRequired(this.changedBy, 'ChangedBy');
     this.validateString(this.changedBy, 'ChangedBy');
+    if (this.changedReason) {
+      const validReasons = ['user_initiated', 'admin_reset', 'system_forced', 'security_breach'];
+      if (!validReasons.includes(this.changedReason)) {
+        throw new ValidationError(
+          'changedReason',
+          `Invalid changedReason. Valid values: ${validReasons.join(', ')}`
+        );
+      }
+    }
   }
 
   toJSON(): Record<string, unknown> {

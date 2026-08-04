@@ -1,4 +1,6 @@
 import { BaseDomainEvent } from './BaseDomainEvent';
+import { ValidationError } from '../../application/errors/ValidationError';
+
 
 export class UserLoggedInEvent extends BaseDomainEvent {
   public readonly eventName = 'user.logged.in';
@@ -21,6 +23,9 @@ export class UserLoggedInEvent extends BaseDomainEvent {
   private validate(): void {
     this.validateUserId(this.userId);
     this.validateEmail(this.email);
+    if (!this.success && (!this.failureReason || this.failureReason.trim() === '')) {
+      throw new ValidationError('failureReason', 'Failure reason is required when login fails');
+    }
   }
 
   toJSON(): Record<string, unknown> {
