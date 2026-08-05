@@ -1,4 +1,6 @@
 import { randomUUID } from 'crypto';
+import { ValidationError } from '../../application/errors/ValidationError';
+import { InvalidUserIdError } from '../errors/InvalidUserIdError';
 
 export class UserId {
   private static readonly UUID_V4_REGEX = 
@@ -16,13 +18,13 @@ export class UserId {
 
   static fromString(value: string): UserId {
     if (!value || value.trim() === '') {
-      throw new Error('UserId cannot be empty');
+      throw new ValidationError('userId', 'UserId cannot be empty');
     }
 
     const trimmed = value.trim();
 
     if (!UserId.isValid(trimmed)) {
-      throw new Error('Invalid UUID format');
+      throw new InvalidUserIdError(trimmed,'Invalid UUID v4 format. Expected: xxxxxxxx-xxxx-4xxx-xxxx-xxxxxxxxxxxx');
     }
 
     return new UserId(trimmed.toLowerCase());

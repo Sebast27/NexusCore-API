@@ -1,3 +1,4 @@
+import { ValidationError } from '../../application/errors/ValidationError';
 import { BaseDomainEvent } from './BaseDomainEvent';
 
 export class UserLoginAttemptedEvent extends BaseDomainEvent {
@@ -24,6 +25,13 @@ export class UserLoginAttemptedEvent extends BaseDomainEvent {
     this.validateRequired(this.loginAttemptId, 'LoginAttemptId');
     this.validateEmail(this.email);
     this.validateRequired(this.ipAddress, 'IpAddress');
+    this.validateIpAddress(this.ipAddress);
+    if (!this.success && (!this.failureReason || this.failureReason.trim() === '')) {
+      throw new ValidationError('failureReason', 'Failure reason is required when login fails');
+    }
+    if (this.userId) {
+      this.validateUserId(this.userId);
+    }
   }
 
   toJSON(): Record<string, unknown> {

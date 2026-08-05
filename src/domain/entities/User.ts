@@ -14,6 +14,15 @@ import { UserRestoredEvent } from '../events/UserRestoredEvent';
 import { UserLoggedInEvent } from '../events/UserLoggedInEvent';
 import { IDateProvider } from '../interfaces/IDateProvider';
 import { randomBytes } from 'crypto';
+import {
+  UserAlreadyDeletedError,
+  UserNotDeletedError,
+  EmailAlreadyVerifiedError,
+  InvalidVerificationTokenError,
+  InvalidRoleError,
+  UserLoginBlockedError,
+} from '../errors';
+import { ValidationError } from '../../application/errors/ValidationError';
 
 export class User {
   private readonly id: UserId;
@@ -52,10 +61,9 @@ export class User {
     email: Email,
     plainPassword: PlainPassword,
     name: Name,
-    role: string,
+    role: Role,
     dateProvider: IDateProvider
   ): Promise<User> {
-    const validRole = User.validateRole(role);
     const now = dateProvider.now();
 
     const hashedPassword = await plainPassword.hash();
@@ -65,7 +73,7 @@ export class User {
       email,
       hashedPassword,
       name,
-      validRole,
+      role,
       now,
       now,
       null
@@ -75,19 +83,11 @@ export class User {
       user.getId().getValue(),
       email.getValue(),
       name.getValue(),
-      validRole,
+      role,
       undefined 
     ));
 
     return user;
-  }
-
-  private static validateRole(role: string): Role {
-    const validRoles = Object.values(Role);
-    if (!validRoles.includes(role as Role)) {
-      throw new Error(`Invalid role: ${role}`);
-    }
-    return role as Role;
   }
 
   // Getters
@@ -151,20 +151,23 @@ export class User {
   }
 
   updateRole(
-    role: string,
+    role: Role,
     changedBy: string,
     dateProvider: IDateProvider,
     reason?: string
   ): void {
+    if (!changedBy || changedBy.trim() === '') {
+      throw new ValidationError('changedBy', 'changedBy is required');
+    }
+
     const oldRole = this.role;
-    const validRole = User.validateRole(role);
-    this.role = validRole;
+    this.role = role;
     this.updatedAt = dateProvider.now();
     
     this.addEvent(new UserRoleChangedEvent(
       this.id.getValue(),
       oldRole,
-      validRole,
+      role,
       changedBy,
       reason
     ));
@@ -176,6 +179,9 @@ export class User {
     dateProvider: IDateProvider,
     reason?: 'user_initiated' | 'admin_reset' | 'system_forced' | 'security_breach'
   ): Promise<void> {
+    if (!changedBy || changedBy.trim() === '') {
+      throw new ValidationError('changedBy', 'changedBy is required');
+    }
     this.password = await plainPassword.hash();
     this.updatedAt = dateProvider.now();
     
@@ -192,8 +198,14 @@ export class User {
     reason: string,
     dateProvider: IDateProvider
   ): void {
+    if (!deletedBy || deletedBy.trim() === '') {
+      throw new ValidationError('deletedBy', 'deletedBy is required');
+    }
+    if (!reason || reason.trim() === '') {
+      throw new ValidationError('reason', 'reason is required');
+    }
     if (this.isDeleted()) {
-      throw new Error('User is already deleted');
+      throw new UserAlreadyDeletedError(this.id.getValue());
     }
     this.deletedAt = dateProvider.now();
     this.updatedAt = dateProvider.now();
@@ -209,8 +221,11 @@ export class User {
     dateProvider: IDateProvider,
     reason?: string
   ): void {
+    if (!restoredBy || restoredBy.trim() === '') {
+      throw new ValidationError('restoredBy', 'restoredBy is required');
+    }
     if (!this.isDeleted()) {
-      throw new Error('User is not deleted');
+      throw new UserNotDeletedError(this.id.getValue());
     }
     this.deletedAt = null;
     this.updatedAt = dateProvider.now();
@@ -224,6 +239,12 @@ export class User {
 
   // ============ PERMANENT DELETE ============
   permanentDelete(deletedBy: string, reason: string): void {
+    if (!deletedBy || deletedBy.trim() === '') {
+      throw new ValidationError('deletedBy', 'deletedBy is required');
+    }
+    if (!reason || reason.trim() === '') {
+      throw new ValidationError('reason', 'reason is required');
+    }
     this.addEvent(new UserDeletedEvent(
       this.id.getValue(),
       deletedBy,
@@ -233,11 +254,14 @@ export class User {
 
   // ============ EMAIL VERIFICATION ============
   verifyEmail(token: string, dateProvider: IDateProvider): void {
+    if (!token || token.trim() === '') {
+      throw new ValidationError('token', 'Token cannot be empty');
+    }
     if (this.emailVerified) {
-      throw new Error('Email already verified');
+      throw new EmailAlreadyVerifiedError(this.email.getValue());
     }
     if (this.verificationToken !== token) {
-      throw new Error('Invalid verification token');
+      throw new InvalidVerificationTokenError();
     }
     this.emailVerified = true;
     this.verificationToken = null;
@@ -250,7 +274,7 @@ export class User {
 
   generateVerificationToken(): string {
     if (this.emailVerified) {
-      throw new Error('Email already verified');
+      throw new EmailAlreadyVerifiedError(this.email.getValue());
     }
     const token = randomBytes(32).toString('hex');
     this.verificationToken = token;
@@ -258,7 +282,6 @@ export class User {
   }
 
   loginSuccessful(
-    email: string,
     metadata?: {
       ipAddress?: string;
       userAgent?: string;
@@ -266,12 +289,12 @@ export class User {
     }
   ): void {
     if (this.isDeleted()) {
-      throw new Error('Cannot login: user is deleted');
+      throw new UserLoginBlockedError(this.email.getValue(), 'User account is deleted');
     }
 
     this.addEvent(new UserLoggedInEvent(
       this.id.getValue(),
-      email,
+      this.email.getValue(),
       true,
       undefined,
       metadata
@@ -279,7 +302,6 @@ export class User {
   }
 
   loginFailed(
-    email: string,
     failureReason: string,
     metadata?: {
       ipAddress?: string;
@@ -287,13 +309,16 @@ export class User {
       correlationId?: string;
     }
   ): void {
+    if (!failureReason || failureReason.trim() === '') {
+      throw new ValidationError('failureReason', 'failureReason is required');
+    }
     if (this.isDeleted()) {
-      throw new Error('Cannot login: user is deleted');
+      throw new UserLoginBlockedError(this.email.getValue(), 'User account is deleted');
     }
 
     this.addEvent(new UserLoggedInEvent(
       this.id.getValue(),
-      email,
+      this.email.getValue(),
       false,
       failureReason,
       metadata

@@ -4,6 +4,7 @@ import { IpAddress } from '../value-objects/IpAddress';
 import { UserId } from '../value-objects/UserId';
 import { DomainEvent } from '../events/DomainEvent';
 import { UserLoginAttemptedEvent } from '../events/UserLoginAttemptedEvent';
+import { ValidationError } from '../../application/errors/ValidationError';
 
 export class LoginAttempt {
   private readonly id: LoginAttemptId;
@@ -40,20 +41,27 @@ export class LoginAttempt {
     email: Email,
     ipAddress: IpAddress,
     userId: UserId,
-    userAgent?: string,
     metadata?: {
-      ipAddress?: string;
       userAgent?: string;
       correlationId?: string;
     }
   ): LoginAttempt {
+    if (!email) {
+      throw new ValidationError('email', 'Email is required');
+    }
+    if (!ipAddress) {
+      throw new ValidationError('ipAddress', 'IP address is required');
+    }
+    if (!userId) {
+      throw new ValidationError('userId', 'User ID is required for successful login');
+    }
     const attempt = new LoginAttempt(
       LoginAttemptId.create(),
       email,
       ipAddress,
-      true, // success
+      true, 
       userId,
-      userAgent
+      metadata?.userAgent,
     );
 
     attempt.addEvent(new UserLoginAttemptedEvent(
@@ -74,20 +82,29 @@ export class LoginAttempt {
     ipAddress: IpAddress,
     failureReason: string,
     userId?: UserId,
-    userAgent?: string,
     metadata?: {
-      ipAddress?: string;
       userAgent?: string;
       correlationId?: string;
     }
   ): LoginAttempt {
+
+    if (!email) {
+      throw new ValidationError('email', 'Email is required');
+    }
+    if (!ipAddress) {
+      throw new ValidationError('ipAddress', 'IP address is required');
+    }
+    if (!failureReason || failureReason.trim() === '') {
+      throw new ValidationError('failureReason', 'Failure reason is required');
+    }
+
     const attempt = new LoginAttempt(
       LoginAttemptId.create(),
       email,
       ipAddress,
-      false, // success
+      false, 
       userId,
-      userAgent,
+      metadata?.userAgent,
       failureReason
     );
 

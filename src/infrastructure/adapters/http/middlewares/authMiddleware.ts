@@ -1,4 +1,4 @@
-// src/infrastructure/adapters/http/middlewares/authMiddleware.ts
+import { ErrorResponseFactory } from '../../../../application/dtos/CommonDTO';
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 
@@ -15,19 +15,17 @@ export const authMiddleware = (req: AuthRequest, res: Response, next: NextFuncti
     // 1. Obtener el token del header
     const authHeader = req.headers.authorization;
     if (!authHeader) {
-      return res.status(401).json({
-        success: false,
-        error: 'No token provided'
-      });
+      return res.status(401).json(
+        ErrorResponseFactory.create('MISSING_TOKEN', 'No token provided')
+      );
     }
 
     // 2. Verificar formato "Bearer <token>"
     const parts = authHeader.split(' ');
     if (parts.length !== 2 || parts[0] !== 'Bearer') {
-      return res.status(401).json({
-        success: false,
-        error: 'Invalid token format. Use: Bearer <token>'
-      });
+      return res.status(401).json(
+        ErrorResponseFactory.create('INVALID_TOKEN_FORMAT', 'Invalid token format. Use: Bearer <token>')
+      );
     }
 
     const token = parts[1];
@@ -50,22 +48,19 @@ export const authMiddleware = (req: AuthRequest, res: Response, next: NextFuncti
     next();
   } catch (error) {
     if (error instanceof jwt.JsonWebTokenError) {
-      return res.status(401).json({
-        success: false,
-        error: 'Invalid token'
-      });
+      return res.status(401).json(
+        ErrorResponseFactory.create('INVALID_TOKEN', 'Invalid token')
+      );
     }
     
     if (error instanceof jwt.TokenExpiredError) {
-      return res.status(401).json({
-        success: false,
-        error: 'Token expired'
-      });
+      return res.status(401).json(
+        ErrorResponseFactory.create('TOKEN_EXPIRED', 'Token expired')
+      );
     }
 
-    return res.status(500).json({
-      success: false,
-      error: 'Internal server error'
-    });
+    return res.status(500).json(
+      ErrorResponseFactory.create('INTERNAL_ERROR', 'Internal server error')
+    );
   }
 };

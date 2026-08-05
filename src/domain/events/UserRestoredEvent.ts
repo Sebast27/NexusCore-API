@@ -1,3 +1,4 @@
+import { ValidationError } from '../../application/errors/ValidationError';
 import { BaseDomainEvent } from './BaseDomainEvent';
 
 export class UserRestoredEvent extends BaseDomainEvent {
@@ -19,8 +20,11 @@ export class UserRestoredEvent extends BaseDomainEvent {
 
   private validate(): void {
     this.validateUserId(this.userId);
-    this.validateRequired(this.restoredBy, 'RestoredBy');
-    this.validateString(this.restoredBy, 'RestoredBy');
+    this.validateRequired(this.restoredBy, 'restoredBy');
+    this.validateString(this.restoredBy, 'restoredBy');
+    if (this.reason && this.reason.length < 3) {
+      throw new ValidationError('reason', 'Reason must be at least 3 characters');
+    }
   }
 
   toJSON(): Record<string, unknown> {

@@ -1,4 +1,5 @@
 import { BaseDomainEvent } from './BaseDomainEvent';
+import { ValidationError } from '../../application/errors/ValidationError';
 
 export class UserDeletedEvent extends BaseDomainEvent {
   public readonly eventName = 'user.deleted';
@@ -24,6 +25,9 @@ export class UserDeletedEvent extends BaseDomainEvent {
     this.validateString(this.deletedBy, 'DeletedBy');
     this.validateRequired(this.reason, 'Reason');
     this.validateString(this.reason, 'Reason');
+    if (this.reason.length < 3) {
+      throw new ValidationError('reason', 'Reason must be at least 3 characters');
+    }
   }
 
   toJSON(): Record<string, unknown> {
